@@ -12,10 +12,10 @@ const auditTargets = [
 ]
 
 const sabotageMap = [
-  { rule: RULE_IDS.NON_TEXT_CONTENT, target: 'product-image' },
-  { rule: RULE_IDS.LABELS_OR_INSTRUCTIONS, target: 'quantity-input' },
-  { rule: RULE_IDS.FOCUS_VISIBLE, target: 'add-to-cart' },
-  { rule: RULE_IDS.TARGET_SIZE_MIN, target: 'remove-item' },
+  { ruleId: RULE_IDS.NON_TEXT_CONTENT, target: 'product-image' },
+  { ruleId: RULE_IDS.LABELS_OR_INSTRUCTIONS, target: 'quantity-input' },
+  { ruleId: RULE_IDS.FOCUS_VISIBLE, target: 'add-to-cart' },
+  { ruleId: RULE_IDS.TARGET_SIZE_MIN, target: 'remove-item' },
 ]
 
 const ecommerceCheckoutLevel = {

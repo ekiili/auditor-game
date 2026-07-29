@@ -1,11 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Minus, Plus } from 'lucide-react'
-
-// oxlint-disable-next-line react/only-export-components -- shared variant enum, must be importable by CheckoutCard.jsx and sabotage.js
-export const LABEL_MODES = Object.freeze({
-  PROGRAMMATIC: 'programmatic',
-  VISUAL_ONLY: 'visual-only',
-})
+import { LABEL_MODES } from './variants'
 
 const LABEL_CLASSES = 'mb-1 block text-sm font-medium text-gray-700'
 

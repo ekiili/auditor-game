@@ -1,20 +1,9 @@
 import { X } from 'lucide-react'
 import productImage from './assets/product.svg'
-import QuantityStepper, { LABEL_MODES } from './QuantityStepper'
+import QuantityStepper from './QuantityStepper'
+import { FOCUS_STYLES, LABEL_MODES, REMOVE_BUTTON_SIZES } from './variants'
 
 export const DEFAULT_IMAGE_ALT = 'Wireless over-ear headphones in indigo blue'
-
-// oxlint-disable-next-line react/only-export-components -- shared variant enum, must be importable by sabotage.js
-export const FOCUS_STYLES = Object.freeze({
-  VISIBLE: 'visible',
-  NONE: 'none',
-})
-
-// oxlint-disable-next-line react/only-export-components -- shared variant enum, must be importable by sabotage.js
-export const REMOVE_BUTTON_SIZES = Object.freeze({
-  DEFAULT: 'default',
-  COMPACT: 'compact',
-})
 
 const DEFAULTS = {
   imageAlt: DEFAULT_IMAGE_ALT,

@@ -1,9 +1,9 @@
 import { RULE_IDS } from '../../data/wcagRules'
-import { DEFAULT_IMAGE_ALT, FOCUS_STYLES, REMOVE_BUTTON_SIZES } from './CheckoutCard'
-import { LABEL_MODES } from './QuantityStepper'
+import { DEFAULT_IMAGE_ALT } from './CheckoutCard'
+import { FOCUS_STYLES, LABEL_MODES, REMOVE_BUTTON_SIZES } from './variants'
 
 export function applySabotage(violations = []) {
-  const isViolated = (ruleId) => violations.includes(ruleId)
+  const isViolated = (ruleId) => violations.some((violation) => violation.ruleId === ruleId)
 
   return {
     imageAlt: isViolated(RULE_IDS.NON_TEXT_CONTENT) ? undefined : DEFAULT_IMAGE_ALT,
