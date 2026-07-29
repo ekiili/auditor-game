@@ -245,6 +245,9 @@ manufacture the very violations being assessed.
 The Inspector's own list uses visually hidden native radio inputs, inheriting
 arrow-key navigation and position announcements rather than reimplementing them.
 
+---
+
+
 ## 18. Audit Mode off means no visible game
 
 **Date:** 2026-07-29 · **Status:** Accepted
@@ -254,6 +257,9 @@ an ordinary user of a real website — no Inspector list, no overlays, no
 annotations. The two-phase rhythm is deliberate: experience the interface first,
 then examine it. Auditing an interface you have never used is not the workflow
 being taught.
+
+---
+
 
 ## 19. Rules are presented in plain language, not by number
 
@@ -308,9 +314,80 @@ without instruction.
 
 ---
 
+## 21. Shared data shapes are defined once in CLAUDE.md
+
+**Date:** 2026-07-29 · **Status:** Accepted
+
+Step 2 defined `applySabotage`'s input as an array of rule-ID strings; step 3
+defined the engine's output as an array of `{ ruleId, target }` objects. Both
+prompts were internally consistent, neither owned the shape, and nothing held
+both in view. The result was a pipeline that silently applied no variants while
+every layer reported success.
+
+Shared shapes — violation entry, guess entry, readout object, level module, game
+state — are therefore defined once in a Data Contracts section of `CLAUDE.md`.
+Task prompts reference them by name rather than re-describing them, so two
+prompts cannot disagree about a shape neither of them owns.
+
+Prose in a task prompt is a poor place for a contract: it is authoritative only
+for that task, and expires when the task is done.
+
+---
+
+## 22. Task prompts do not restate CLAUDE.md
+
+**Date:** 2026-07-29 · **Status:** Accepted
+
+Task prompts carry only what is specific to the task — goal, unique constraints,
+verification, definition of done. Guardrails, layer rules, lint policy, and the
+prohibition on building ahead live in `CLAUDE.md` and are not repeated.
+
+Restating was justified while `CLAUDE.md` was known to be stale; it is not
+justified now that the file is current and version-checked. Duplicated rules also
+create the same drift risk as duplicated contracts — two copies eventually
+disagree, and the task prompt is the one nobody updates.
+
+Developer reports follow the same principle: terse confirmation per checklist
+item, with expansion reserved for deviations, explicitly requested figures, and
+failures.
+
+---
+
+
+## 23. Unrecorded shapes are confirmed before anything depends on them
+
+**Date:** 2026-07-29 · **Status:** Accepted
+
+Writing the Data Contracts section for `CLAUDE.md` v4 revealed that only three of
+the shared shapes were actually confirmed: the violation entry, the guess entry,
+and the level module's top-level keys. Four were not — the readout object, the
+reducer's state and action names, and the entry shapes inside `auditTargets` and
+`sabotageMap`.
+
+Plausible versions of all four could have been written from context, and most of
+them would probably have been right. That is the failure mode Decision 21 exists
+to prevent: a contract that reads as authoritative but disagrees with the code
+produces layers that agree with each other while both are wrong, and nothing
+reports an error.
+
+The four are therefore marked as unrecorded in `CLAUDE.md`, under a rule that no
+task may depend on an unrecorded shape — a task that needs one stops and asks.
+They are confirmed by a dedicated read-and-report task before the Inspector is
+specified.
+
+Confirmation is deliberately not bundled into the task that consumes the shapes.
+Bundling saves a round trip, but it means Inspector code gets written against
+assumed shapes while the assumptions are still unverified — and if one is wrong,
+the work backs up further than the round trip would have cost.
+
+---
+
 ## Open questions
 
-Not yet decided. Listed so they are not silently resolved by implementation.
+Open questions are tracked in the Pending Decisions section of `CLAUDE.md`,
+which is authoritative. Three documents were each maintaining a different list
+of what remained undecided; consolidating into the file the Developer actually
+reads removes the divergence at its source. Questions are recorded here as
+numbered entries once they are answered, not while they are open.
 
-- **Review phase presentation.** Outline plus badge with an explanatory panel on hover is agreed; the data structure behind it is not. Whether the review also explains *false positives* — including exempt cases such as the user-agent spinner exception — remains open.
-- **Final report contents.** Must show what the player missed. Everything beyond that is undecided.
+---
