@@ -166,11 +166,67 @@ Decisions are recorded as they are made, with the rejected alternative and the r
 
 ---
 
+## 15. The Inspector reports facts, not verdicts
+
+**Date:** 2026-07-29 · **Status:** Accepted
+
+Two of the four Phase 1 violations produce no visual difference — a missing
+image description and a label that is visually adjacent but not programmatically
+associated both render identically to their compliant versions. Inspection must
+therefore surface properties the screen cannot show.
+
+Chosen approach: the player selects an element and reads its properties in a
+panel — role, computed accessible name, target dimensions, focus indicator.
+Rejected alternatives: annotating every element at once (removes the act of
+investigating), screen-reader simulation alone (cannot express target size),
+and dropping the invisible rules from Phase 1 (they are among the most common
+real-world failures, and postponing them weakens the tool).
+
+A screen-reader preview may be layered on later, reusing the same computed data.
+
+**Sub-decisions:**
+
+- Accessible names are computed with `dom-accessibility-api` rather than a
+  hand-rolled resolver. The name computation is a real specification with a
+  precedence order and edge cases; in a tool teaching correctness, a spec-correct
+  implementation outweighs avoiding one small offline dependency.
+- The readout is presented in neutral styling. Empty values are never coloured,
+  iconed, or flagged as suspicious. Highlighting "Accessible name: (none)" would
+  perform the audit for the player, reducing them to transcribing findings rather
+  than making them.
+- All values are computed from the live DOM, never from game state. Deriving the
+  readout from the answer key would make the Inspector and the sabotage layer
+  agree even when the sabotage layer is broken, hiding exactly the defects the
+  readout exists to expose.
+
+---
+
+## 16. Architecture docs are updated in the same task as the refactor
+
+**Date:** 2026-07-29 · **Status:** Accepted
+
+Step 2 restructured the project around a level registry, but CLAUDE.md was not
+updated to match. The stale description survived two commits and blocked step 3,
+when the Developer correctly refused to guess between the file's stated
+architecture and the task prompt's assumed one.
+
+Any task that changes the file tree, the layer boundaries, or a prop contract
+must ship the corresponding CLAUDE.md revision with it — not afterwards. A
+specification that disagrees with the repository is worse than no specification,
+because it is followed with confidence.
+
+Two mechanisms caught this rather than luck: the requirement that every task
+report quote the CLAUDE.md version line, and the instruction to report
+discrepancies and stop rather than resolve them independently.
+
+---
+
+
+
 ## Open questions
 
 Not yet decided. Listed so they are not silently resolved by implementation.
 
-- **What the Inspector displays.** Two of the four Phase 1 violations (missing `alt`, missing `<label>`) are visually undetectable, so inspection must surface something — likely role, computed accessible name, and relevant attributes, read from the **live DOM** rather than from game state. Deriving the readout from the answer key would make any bug in the sabotage layer invisible, since both sides would lie consistently.
 - **How the player selects an element.** Clicking the canvas is unreliable: the 2.5.8 violation shrinks a target to 16×16, forcing the player to click a tiny control to report that it is tiny. Keyboard selection cannot rely on the component's focus ring either, since `focusStyle: 'none'` may have removed it. A list-based selector in the Inspector with its own overlay highlight is the likely answer.
 - **Review phase presentation.** Outline plus badge with an explanatory panel on hover is agreed; the data structure behind it is not. Whether the review also explains *false positives* — including exempt cases such as the user-agent spinner exception — remains open.
 - **Final report contents.** Must show what the player missed. Everything beyond that is undecided.
