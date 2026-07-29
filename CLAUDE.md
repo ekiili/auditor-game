@@ -1,4 +1,4 @@
-> **CLAUDE.md — v3 (2026-07-29)**
+> **CLAUDE.md — v4 (2026-07-29)**
 > This file is maintained by the Planner. Do not edit, append to, or
 > reorganize it. If you find it incomplete, ambiguous, or contradicted by
 > your task prompt, do not resolve the conflict yourself — report the
@@ -74,11 +74,7 @@ Current contract for `ecommerce-checkout`:
 
 ### Levels
 
-Each level is a self-contained directory exporting one object from its `index.js`:
-
-```js
-{ id, name, Component, auditTargets, sabotageMap, applySabotage }
-```
+Each level is a self-contained directory exporting one object from its `index.js`. Its shape is the **Level module** contract below.
 
 * **`auditTargets`** — every element the player can point at, with a human-readable label. Includes elements that are never broken.
 * **`sabotageMap`** — the (rule, target) pairs this level can actually break.
@@ -119,6 +115,73 @@ src/
 Some of these do not exist yet. Build only what your current task specifies.
 
 `src/components/` is for UI shared across all levels. Level-specific components never go there.
+
+### Import Conventions
+
+* Relative imports inside `src/` carry an **explicit file extension**: `./scoring.js`, never `./scoring`.
+* Directory imports are written **to the file**: `../levels/index.js`, never `../levels`.
+* Bare package imports are unaffected: `react`, `lucide-react`, `dom-accessibility-api`.
+
+Vite resolves the extensionless and directory forms by convention; native Node does not. Every pure module must stay importable by plain `node`, because throwaway Node scripts are this project's only verification mechanism. An import that resolves in the dev server but fails under `node` removes the ability to prove the module works.
+
+---
+
+## Data Contracts
+
+The shapes below are shared across layer boundaries. They are defined **here, once**. Task prompts refer to them by name and do not re-describe them.
+
+A shape described in prose in a task prompt is authoritative only for that task and expires when the task ends. Two prompts that each describe the same shape will eventually disagree, and both layers will report success while the pipeline does nothing. If a task prompt describes a shape that contradicts this section, **stop and report**.
+
+### Violation entry
+
+```js
+{ ruleId: string, target: string }
+```
+
+* `ruleId` — a WCAG criterion number as a string, sourced from `RULE_IDS` in `src/data/wcagRules.js`. Never written as a literal outside that file.
+* `target` — an audit target identifier, matching a `data-audit-target` attribute value.
+
+Produced by `saboteurEngine.js`. Consumed by a level's `applySabotage` and by `scoring.js`.
+
+An **array** of violation entries is the round's Truth. An empty array is valid and means a clean round — it is not an error condition and must not be treated as one.
+
+### Guess entry
+
+```js
+{ ruleId: string, target: string }
+```
+
+Structurally identical to a Violation entry, and deliberately so: comparison in `scoring.js` is field equality, with no translation step between the two.
+
+Produced by the Inspector. Consumed by `scoring.js`. **Both** fields must match a violation entry for a true positive.
+
+### Level module
+
+The single object exported from `src/levels/<level>/index.js`:
+
+```js
+{ id, name, Component, auditTargets, sabotageMap, applySabotage }
+```
+
+* `id` — string, unique across the registry, matching the level's directory name.
+* `name` — human-readable level name.
+* `Component` — the React component. Renders a fully compliant baseline when given no props.
+* `auditTargets` — array. Every element the player can point at, each carrying a human-readable label. Longer than `sabotageMap`.
+* `sabotageMap` — array. The (rule, target) pairs this level can break.
+* `applySabotage` — pure function. Takes an array of **Violation entries**, returns a props object for `Component`.
+
+The entry shapes inside `auditTargets` and `sabotageMap` are **not yet recorded** — see below.
+
+### Unrecorded contracts
+
+The following shapes are shared across layers but are **not yet written down here**. They exist in the repository; they have not been confirmed into this file.
+
+* **Readout object** — returned by `inspectElement` in `src/levels/.../readout.js`.
+* **Game state** — the shape of the `gameState.js` reducer's state, and its action names. Only `startRound` is confirmed, and only that its payload carries the round's violations rather than generating them.
+* **`auditTargets` entry** — the exact key names of a single audit target.
+* **`sabotageMap` entry** — the exact key names of a single breakable pair.
+
+**No task may depend on an unrecorded shape.** If a task requires one, stop and report rather than inferring it from surrounding code — an inferred contract that happens to be wrong is the exact failure this section exists to prevent.
 
 ---
 
@@ -193,7 +256,14 @@ Recorded here so they are not re-litigated. Full reasoning is in `docs/decisions
 * **Scoring:** +1 per true positive, −1 per false positive, −1 per false negative. A correct empty submission on a clean round scores +1. Round scores may go negative and are not clamped. Values are provisional and defined as named constants for tuning.
 * **No "Declare Compliant" control.** Submit means "I have logged every violation I found." An empty log is a valid answer, guarded by a confirmation step.
 * **Audit Mode starts off** each round, so the player can use the component normally first.
+* **Audit Mode off means no visible game.** Before Audit Mode is enabled the page looks like an ordinary website — no Inspector, no overlays, no annotations over the card.
 * **The Inspector reports facts, not verdicts.** It shows role, accessible name, dimensions, and focus styles in neutral styling. Empty values are never coloured, iconed, or flagged. The absence is the signal; noticing it is the skill.
+* **Element selection is list-primary.** The player selects from a list of the level's audit targets. Canvas clicking also works, via one delegated handler using `closest('[data-audit-target]')`, so the level component stays unaware the game exists.
+* **The selection highlight is a separate positioned overlay**, sized from the element's bounding rectangle. It is never drawn as a style on the audited element — `outline`, `border`, and `background` are each either an audited property or affect measured target size.
+* **The Inspector's target list uses visually hidden native radio inputs**, inheriting arrow-key navigation and position announcements rather than reimplementing them.
+* **Rules are presented in plain language.** Each rule carries a `shortLabel` as primary text, with criterion number and official name secondary, plus a `keywords` array for search.
+* **The rule picker is a filter field above an always-visible radio group**, not a searchable dropdown. Rules are never filtered by the selected element.
+* **Rule data carries `principle`** (Perceivable, Operable, Understandable, Robust) as an explicit field from the start, alongside a frozen `PRINCIPLES` constant, even though nothing renders groups yet.
 * **The quantity control is a custom stepper**, not a bare native number input. Native spinner arrows fall under 2.5.8's user-agent exception and would create unfair false positives.
 * **No test framework.** Verification uses throwaway Node scripts, deleted before commit.
 
@@ -216,10 +286,20 @@ Recorded here so they are not re-litigated. Full reasoning is in `docs/decisions
 * Never add a dependency, change the build target, or alter the file structure without asking.
 * Do not create test-framework config, CI workflows, or deployment automation unless a task asks for it.
 
+### Report Format
+
+Reports are **exceptions-first**.
+
+* One terse line of confirmation per checklist item. "Done" is sufficient for an item that went as specified.
+* Expand only for: deviations from the prompt, figures the prompt explicitly asked to see, and failures.
+* Where a prompt asks for real output — counts, printed objects, command results — paste the actual output. Do not describe it or summarise it as "works as expected."
+* A long report about a task that went cleanly is a defect in the report, not evidence of thoroughness.
+
 ## Pending Decisions — Ask, Don't Assume
 
-Genuinely unsettled. If a task requires one, stop and ask:
+Genuinely unsettled. This list is authoritative; `docs/decisions.md` points here rather than maintaining its own copy. If a task requires one of these, stop and ask:
 
-* The data structure behind the review phase, and whether it also explains **false positives** — including exempt cases such as the user-agent spinner exception.
-* Contents of the end-of-session report beyond "what the player missed."
-* How the player selects an element for inspection (canvas click vs. a list in the Inspector, and the selection highlight, which cannot rely on the component's own focus ring since `focusStyle: 'none'` may have removed it).
+* **Review phase data structure.** Outline plus badge with an explanatory panel on hover is agreed; the data structure behind it is not. Whether the review also explains **false positives** — including exempt cases such as the user-agent spinner exception — is open.
+* **End-of-session report contents** beyond "what the player missed."
+* **Rule list scope.** Whether the rule picker eventually lists every WCAG 2.2 AA success criterion, or only those introduced so far.
+* **Grouping threshold.** The rule count at which the picker switches from a flat list to `<fieldset>`/`<legend>` groups by principle, and at which the filter field appears.
