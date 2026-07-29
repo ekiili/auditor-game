@@ -27,3 +27,6 @@ dist-ssr
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Documents
+prd.md
