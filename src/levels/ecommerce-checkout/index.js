@@ -1,6 +1,6 @@
-import { RULE_IDS } from '../../data/wcagRules'
-import CheckoutCard from './CheckoutCard'
-import { applySabotage } from './sabotage'
+import { RULE_IDS } from '../../data/wcagRules.js'
+import CheckoutCard from './CheckoutCard.jsx'
+import { applySabotage } from './sabotage.js'
 
 const auditTargets = [
   { id: 'product-image', label: 'Product image' },

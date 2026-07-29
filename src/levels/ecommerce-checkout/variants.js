@@ -1,3 +1,5 @@
+export const DEFAULT_IMAGE_ALT = 'Wireless over-ear headphones in indigo blue'
+
 export const FOCUS_STYLES = Object.freeze({
   VISIBLE: 'visible',
   NONE: 'none',

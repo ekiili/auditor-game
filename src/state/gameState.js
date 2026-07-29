@@ -5,7 +5,7 @@
 // and passes them in the action payload; this reducer only ever consumes
 // that payload, never generates its own.
 
-import { scoreRound } from '../engine/scoring'
+import { scoreRound } from '../engine/scoring.js'
 
 const TOTAL_ROUNDS = 10
 

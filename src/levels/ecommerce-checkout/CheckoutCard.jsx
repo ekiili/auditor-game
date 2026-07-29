@@ -1,9 +1,7 @@
 import { X } from 'lucide-react'
 import productImage from './assets/product.svg'
-import QuantityStepper from './QuantityStepper'
-import { FOCUS_STYLES, LABEL_MODES, REMOVE_BUTTON_SIZES } from './variants'
-
-export const DEFAULT_IMAGE_ALT = 'Wireless over-ear headphones in indigo blue'
+import QuantityStepper from './QuantityStepper.jsx'
+import { DEFAULT_IMAGE_ALT, FOCUS_STYLES, LABEL_MODES, REMOVE_BUTTON_SIZES } from './variants.js'
 
 const DEFAULTS = {
   imageAlt: DEFAULT_IMAGE_ALT,

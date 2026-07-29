@@ -1,7 +1,7 @@
 import { useEffect, useReducer } from 'react'
-import { selectViolations } from './engine/saboteurEngine'
-import { levels } from './levels'
-import { gameReducer, INITIAL_STATE, startRound } from './state/gameState'
+import { selectViolations } from './engine/saboteurEngine.js'
+import { levels } from './levels/index.js'
+import { gameReducer, INITIAL_STATE, startRound } from './state/gameState.js'
 
 const [currentLevel] = levels
 

@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Minus, Plus } from 'lucide-react'
-import { LABEL_MODES } from './variants'
+import { LABEL_MODES } from './variants.js'
 
 const LABEL_CLASSES = 'mb-1 block text-sm font-medium text-gray-700'
 
