@@ -1,0 +1,30 @@
+import { RULE_IDS } from '../../data/wcagRules'
+import CheckoutCard from './CheckoutCard'
+import { applySabotage } from './sabotage'
+
+const auditTargets = [
+  { id: 'product-image', label: 'Product image' },
+  { id: 'quantity-input', label: 'Quantity input' },
+  { id: 'quantity-decrease', label: 'Decrease quantity button' },
+  { id: 'quantity-increase', label: 'Increase quantity button' },
+  { id: 'add-to-cart', label: 'Add to Cart button' },
+  { id: 'remove-item', label: 'Remove item button' },
+]
+
+const sabotageMap = [
+  { rule: RULE_IDS.NON_TEXT_CONTENT, target: 'product-image' },
+  { rule: RULE_IDS.LABELS_OR_INSTRUCTIONS, target: 'quantity-input' },
+  { rule: RULE_IDS.FOCUS_VISIBLE, target: 'add-to-cart' },
+  { rule: RULE_IDS.TARGET_SIZE_MIN, target: 'remove-item' },
+]
+
+const ecommerceCheckoutLevel = {
+  id: 'ecommerce-checkout',
+  name: 'E-commerce Checkout Card',
+  Component: CheckoutCard,
+  auditTargets,
+  sabotageMap,
+  applySabotage,
+}
+
+export default ecommerceCheckoutLevel
