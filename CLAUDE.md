@@ -1,4 +1,4 @@
-> **CLAUDE.md — v8 (2026-07-30)**
+> **CLAUDE.md — v9 (2026-07-30)**
 > This file is maintained by the Planner. Do not edit, append to, or
 > reorganize it. If you find it incomplete, ambiguous, or contradicted by
 > your task prompt, do not resolve the conflict yourself — report the
@@ -97,7 +97,8 @@ src/
 ├─ components/                     shared, level-agnostic UI
 │  ├─ AuditModeToggle.jsx
 │  ├─ TargetList.jsx
-│  └─ SelectionOverlay.jsx
+│  ├─ SelectionOverlay.jsx
+│  └─ ReadoutPanel.jsx
 ├─ data/
 │  └─ wcagRules.js                 static rule data only — no logic
 ├─ engine/
@@ -415,12 +416,15 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 * **Scoring:** +1 per true positive, −1 per false positive, −1 per false negative. A correct empty submission on a clean round scores +1. Round scores may go negative and are not clamped. Values are provisional and defined as named constants for tuning.
 * **No "Declare Compliant" control.** Submit means "I have logged every violation I found." An empty log is a valid answer, guarded by a confirmation step.
 * **Audit Mode starts off** each round, so the player can use the component normally first.
-* **Audit Mode off means no visible game.** Before Audit Mode is enabled the page looks like an ordinary website — no Inspector, no overlays, no annotations over the card. The target list and overlay are absent from the DOM, not hidden.
+* **Audit Mode off means no visible game.** Before Audit Mode is enabled the page looks like an ordinary website — no Inspector, no overlays, no annotations over the card. The target list, overlay and readout panel are absent from the DOM, not hidden.
 * **Interception is capture-phase**, on a sizing-only wrapper around the level component. A bubble-phase handler runs after the card's own handler has already fired. The wrapper adds no padding, margin, border, or transform — a transform would create a containing block and move the overlay.
 * **The Inspector reports facts, not verdicts.** It shows role, accessible name, dimensions, and focus styles in neutral styling. Empty values are never coloured, iconed, or flagged. The absence is the signal; noticing it is the skill.
 * **Element selection is list-primary.** The player selects from a list of the level's audit targets. Canvas clicking also works, via one delegated handler using `closest('[data-audit-target]')`, so the level component stays unaware the game exists.
 * **The selection highlight is a separate positioned overlay**, sized to exactly the element's bounding rectangle. The visible ring is an `outline` with `outline-offset` on the overlay, which reads as surrounding the element without changing any measured rectangle. It is never drawn as a style on the audited element — `outline`, `border`, and `background` are each either an audited property or affect measured target size.
 * **The Inspector's target list uses visually hidden native radio inputs**, inside a `<fieldset>` with a visible `<legend>`, inheriting arrow-key navigation and position announcements rather than reimplementing them. Visually hidden means `sr-only` — never `display:none`, `hidden`, or `aria-hidden`.
+* **The Inspector describes the element the player most recently moved to**, however they reached it — the target list, a canvas click, or Tab. There is no separate selected element and focused element.
+* **The selection highlight is not rendered while the current element matches `:focus-visible`**, so the player sees that element's own focus styling or its absence. Clicked selection keeps its highlight. The focus readout is captured when the element receives focus and retained until the current element changes, so moving focus away to read the panel does not empty it.
+* **No live region in the Inspector.** The panel changes on every Tab, and announcing each change would talk over the target list's own announcements.
 * **The rule picker is a filter field above an always-visible radio group**, not a searchable dropdown. Rules are never filtered by the selected element.
 * **The quantity control is a custom stepper**, not a bare native number input. Native spinner arrows fall under 2.5.8's user-agent exception and would create unfair false positives.
 * **No test framework.** Throwaway Node scripts, deleted before commit.
