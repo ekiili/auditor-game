@@ -382,6 +382,32 @@ the work backs up further than the round trip would have cost.
 
 ---
 
+## 24. "Pure module" means: imports no JSX
+
+**Date:** 2026-07-29 · **Status:** Accepted
+
+`CLAUDE.md` v4 required every pure module to stay importable by plain `node`,
+without defining "pure module." The confirmation task exposed the contradiction:
+the Level module contract requires a `Component` field, `Component` lives in a
+`.jsx` file, and `node` cannot parse `.jsx` at all. Both level `index.js` files
+are therefore permanently unloadable by plain `node` — by construction, not by
+defect.
+
+A pure module is one that transitively imports no `.jsx`. Those must stay
+loadable under plain `node`, because throwaway Node scripts are the project's
+only verification mechanism. Modules that reach JSX are outside the rule.
+
+The operative half is where verification scripts point: directly at the pure
+module under test, never at a level `index.js` or the registry. The confirmation
+task failed precisely because it reached through the registry, and its stated
+diagnostic — that failure would indicate an import-hygiene problem — was wrong.
+Import hygiene was clean.
+
+Recording this because the rule looked correct for two revisions and only failed
+the first time something actually tried to obey it.
+
+---
+
 ## Open questions
 
 Open questions are tracked in the Pending Decisions section of `CLAUDE.md`,
