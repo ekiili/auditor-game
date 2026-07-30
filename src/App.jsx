@@ -53,6 +53,18 @@ function App() {
     event.stopPropagation()
   }
 
+  // React's onFocus is delegated as native `focusin`, which bubbles — plain
+  // `focus` does not, and would never reach this wrapper. Focus landing on
+  // anything that is not an audit target leaves the current element alone, so
+  // moving to the panel or the toggle does not clear it.
+  const handleCanvasFocus = (event) => {
+    if (!state.auditMode) return
+
+    const element = event.target.closest('[data-audit-target]')
+
+    if (element) dispatch(selectTarget(element.dataset.auditTarget))
+  }
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-gray-50 p-6">
       <h1 className="sr-only">Audit Game</h1>
@@ -64,6 +76,7 @@ function App() {
         className="w-full max-w-sm"
         onClickCapture={handleCanvasClickCapture}
         onKeyDownCapture={handleCanvasKeyDownCapture}
+        onFocus={handleCanvasFocus}
       >
         <LevelComponent {...currentLevel.applySabotage(state.truth)} />
       </div>
