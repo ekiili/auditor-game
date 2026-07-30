@@ -16,6 +16,7 @@ export const INITIAL_STATE = {
   score: 0,
   status: 'auditing',
   auditMode: false,
+  selectedTarget: null,
   truth: [],
   guesses: [],
   lastResult: null,
@@ -28,6 +29,10 @@ export function startRound({ levelId, violations }) {
 
 export function toggleAuditMode() {
   return { type: 'toggleAuditMode' }
+}
+
+export function selectTarget(targetId) {
+  return { type: 'selectTarget', payload: targetId }
 }
 
 export function addGuess(guess) {
@@ -58,11 +63,19 @@ export function gameReducer(state = INITIAL_STATE, action) {
         lastResult: null,
         status: 'auditing',
         auditMode: false,
+        selectedTarget: null,
       }
     }
 
     case 'toggleAuditMode': {
-      return { ...state, auditMode: !state.auditMode }
+      const auditMode = !state.auditMode
+      // Leaving Audit Mode discards the selection; entering it selects nothing.
+      if (!auditMode) return { ...state, auditMode, selectedTarget: null }
+      return { ...state, auditMode }
+    }
+
+    case 'selectTarget': {
+      return { ...state, selectedTarget: action.payload }
     }
 
     case 'addGuess': {
@@ -105,6 +118,7 @@ export function gameReducer(state = INITIAL_STATE, action) {
         lastResult: null,
         status: 'auditing',
         auditMode: false,
+        selectedTarget: null,
       }
     }
 
