@@ -3,7 +3,7 @@ const FALSE_POSITIVE_POINTS = -1
 const FALSE_NEGATIVE_POINTS = -1
 const COMPLIANT_CORRECT_POINTS = 1
 
-function isSamePair(a, b) {
+export function isSamePair(a, b) {
   return a.ruleId === b.ruleId && a.target === b.target
 }
 

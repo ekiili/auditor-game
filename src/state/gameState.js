@@ -5,7 +5,7 @@
 // and passes them in the action payload; this reducer only ever consumes
 // that payload, never generates its own.
 
-import { scoreRound } from '../engine/scoring.js'
+import { isSamePair, scoreRound } from '../engine/scoring.js'
 
 const TOTAL_ROUNDS = 10
 
@@ -20,10 +20,6 @@ export const INITIAL_STATE = {
   guesses: [],
   lastResult: null,
   history: [],
-}
-
-function isSamePair(a, b) {
-  return a.ruleId === b.ruleId && a.target === b.target
 }
 
 export function startRound({ levelId, violations }) {
