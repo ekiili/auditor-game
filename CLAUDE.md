@@ -1,4 +1,4 @@
-> **CLAUDE.md — v9 (2026-07-30)**
+> **CLAUDE.md — v10 (2026-07-30)**
 > This file is maintained by the Planner. Do not edit, append to, or
 > reorganize it. If you find it incomplete, ambiguous, or contradicted by
 > your task prompt, do not resolve the conflict yourself — report the
@@ -98,7 +98,9 @@ src/
 │  ├─ AuditModeToggle.jsx
 │  ├─ TargetList.jsx
 │  ├─ SelectionOverlay.jsx
-│  └─ ReadoutPanel.jsx
+│  ├─ ReadoutPanel.jsx
+│  ├─ RulePicker.jsx
+│  └─ GuessLog.jsx
 ├─ data/
 │  └─ wcagRules.js                 static rule data only — no logic
 ├─ engine/
@@ -266,7 +268,7 @@ Call it against `document.activeElement`. Whether `:focus-visible` matches an un
 
 ### Game state
 
-`src/state/gameState.js` exports `INITIAL_STATE`, `gameReducer`, and seven action creators.
+`src/state/gameState.js` exports `INITIAL_STATE`, `gameReducer`, and eight action creators.
 
 ```js
 {
@@ -277,6 +279,7 @@ Call it against `document.activeElement`. Whether `:focus-visible` matches an un
   status: 'auditing',
   auditMode: false,
   selectedTarget: null,
+  selectedRule: null,
   truth: [],
   guesses: [],
   lastResult: null,
@@ -287,13 +290,14 @@ Call it against `document.activeElement`. Whether `:focus-visible` matches an un
 * `truth` — array of **Violation entries**. Passed in by `startRound`; the reducer never generates it.
 * `guesses` — array of **Guess entries**.
 * `status` — one of `'auditing'`, `'reviewing'`, `'gameOver'`.
-* `selectedTarget` — an `auditTargets` entry's `id`, or `null`. Cleared by `selectTarget(null)`, by `toggleAuditMode` when it turns Audit Mode off, by `startRound`, and by `nextRound`. Turning Audit Mode on selects nothing.
+* `selectedTarget` — an `auditTargets` entry's `id`, or `null`. Cleared by `selectTarget(null)`, by `toggleAuditMode` when it turns Audit Mode off, by `startRound`, and by `nextRound`. Turning Audit Mode on selects nothing. **Survives `addGuess`**, since the player often logs more than one rule against the same element.
+* `selectedRule` — a `RULE_IDS` value, or `null`. Cleared by the same four paths as `selectedTarget`, **and additionally by a successful `addGuess`**, so the next log is a deliberate choice rather than a leftover one. A rejected duplicate `addGuess` leaves it in place.
 * `lastResult` — `null`, or the most recent **Round result**.
 * `history` — array of **Round result** objects, one per completed round.
 
 Action types are bare camelCase strings, identical to their creator names — no namespace prefix, no `SCREAMING_CASE`:
 
-`startRound` · `toggleAuditMode` · `selectTarget` · `addGuess` · `removeGuess` · `submitAudit` · `nextRound`
+`startRound` · `toggleAuditMode` · `selectTarget` · `selectRule` · `addGuess` · `removeGuess` · `submitAudit` · `nextRound`
 
 Any new action follows the same convention, and ships its creator and its reducer branch together.
 
@@ -416,7 +420,7 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 * **Scoring:** +1 per true positive, −1 per false positive, −1 per false negative. A correct empty submission on a clean round scores +1. Round scores may go negative and are not clamped. Values are provisional and defined as named constants for tuning.
 * **No "Declare Compliant" control.** Submit means "I have logged every violation I found." An empty log is a valid answer, guarded by a confirmation step.
 * **Audit Mode starts off** each round, so the player can use the component normally first.
-* **Audit Mode off means no visible game.** Before Audit Mode is enabled the page looks like an ordinary website — no Inspector, no overlays, no annotations over the card. The target list, overlay and readout panel are absent from the DOM, not hidden.
+* **Audit Mode off means no visible game.** Before Audit Mode is enabled the page looks like an ordinary website — no Inspector, no overlays, no annotations over the card. The target list, overlay, readout panel, rule picker and guess log are absent from the DOM, not hidden.
 * **Interception is capture-phase**, on a sizing-only wrapper around the level component. A bubble-phase handler runs after the card's own handler has already fired. The wrapper adds no padding, margin, border, or transform — a transform would create a containing block and move the overlay.
 * **The Inspector reports facts, not verdicts.** It shows role, accessible name, dimensions, and focus styles in neutral styling. Empty values are never coloured, iconed, or flagged. The absence is the signal; noticing it is the skill.
 * **Element selection is list-primary.** The player selects from a list of the level's audit targets. Canvas clicking also works, via one delegated handler using `closest('[data-audit-target]')`, so the level component stays unaware the game exists.
@@ -425,7 +429,9 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 * **The Inspector describes the element the player most recently moved to**, however they reached it — the target list, a canvas click, or Tab. There is no separate selected element and focused element.
 * **The selection highlight is not rendered while the current element matches `:focus-visible`**, so the player sees that element's own focus styling or its absence. Clicked selection keeps its highlight. The focus readout is captured when the element receives focus and retained until the current element changes, so moving focus away to read the panel does not empty it.
 * **No live region in the Inspector.** The panel changes on every Tab, and announcing each change would talk over the target list's own announcements.
-* **The rule picker is a filter field above an always-visible radio group**, not a searchable dropdown. Rules are never filtered by the selected element.
+* **The rule picker is an always-visible radio group**, never a searchable dropdown. A filter field appears above it once the rule count justifies one; at four rules there is none.
+* **The picker lists rules, not applicable rules.** It is never filtered by the current element, never by `sabotageMap`, never by what could plausibly be wrong. Every rule is offered against every target — twenty-four pairs against a `sabotageMap` of four — and narrowing the list would hand over the answer key.
+* **The guess log shows what the player logged and nothing else.** No correctness marking, no counts against Truth, no colour or icon distinguishing a real violation from a decoy. It has no access to Truth and must not acquire any.
 * **The quantity control is a custom stepper**, not a bare native number input. Native spinner arrows fall under 2.5.8's user-agent exception and would create unfair false positives.
 * **No test framework.** Throwaway Node scripts, deleted before commit.
 
