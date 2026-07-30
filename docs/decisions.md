@@ -358,27 +358,17 @@ failures.
 
 **Date:** 2026-07-29 · **Status:** Accepted
 
-Writing the Data Contracts section for `CLAUDE.md` v4 revealed that only three of
-the shared shapes were actually confirmed: the violation entry, the guess entry,
-and the level module's top-level keys. Four were not — the readout object, the
-reducer's state and action names, and the entry shapes inside `auditTargets` and
-`sabotageMap`.
+Only three of the shared shapes were ever confirmed against the code: violation
+entry, guess entry, and the level module's top-level keys. The readout object,
+the reducer's state and action names, and the entry shapes inside `auditTargets`
+and `sabotageMap` were assumed.
 
-Plausible versions of all four could have been written from context, and most of
-them would probably have been right. That is the failure mode Decision 21 exists
-to prevent: a contract that reads as authoritative but disagrees with the code
-produces layers that agree with each other while both are wrong, and nothing
-reports an error.
+Unconfirmed shapes are marked unrecorded in `CLAUDE.md`, and no task may depend
+on one. They are confirmed by a dedicated read-and-report task.
 
-The four are therefore marked as unrecorded in `CLAUDE.md`, under a rule that no
-task may depend on an unrecorded shape — a task that needs one stops and asks.
-They are confirmed by a dedicated read-and-report task before the Inspector is
-specified.
-
-Confirmation is deliberately not bundled into the task that consumes the shapes.
-Bundling saves a round trip, but it means Inspector code gets written against
-assumed shapes while the assumptions are still unverified — and if one is wrong,
-the work backs up further than the round trip would have cost.
+Rejected: bundling confirmation into the task that consumes the shapes. It saves
+a round trip, but code gets written against assumptions while they are still
+unverified, and a wrong one costs more than the trip saved.
 
 ---
 
@@ -386,25 +376,37 @@ the work backs up further than the round trip would have cost.
 
 **Date:** 2026-07-29 · **Status:** Accepted
 
-`CLAUDE.md` v4 required every pure module to stay importable by plain `node`,
-without defining "pure module." The confirmation task exposed the contradiction:
-the Level module contract requires a `Component` field, `Component` lives in a
-`.jsx` file, and `node` cannot parse `.jsx` at all. Both level `index.js` files
-are therefore permanently unloadable by plain `node` — by construction, not by
-defect.
+`CLAUDE.md` required every pure module to stay importable by plain `node` without
+defining "pure module." The Level module contract requires a `Component`,
+`Component` lives in a `.jsx` file, and `node` cannot parse `.jsx` — so both level
+`index.js` files are unloadable by construction, not by defect.
 
-A pure module is one that transitively imports no `.jsx`. Those must stay
-loadable under plain `node`, because throwaway Node scripts are the project's
-only verification mechanism. Modules that reach JSX are outside the rule.
+A pure module imports no `.jsx`. Those must load under plain `node`. Modules that
+reach JSX are outside the rule, and verification scripts import the pure module
+they need directly rather than reaching through a level index or the registry.
 
-The operative half is where verification scripts point: directly at the pure
-module under test, never at a level `index.js` or the registry. The confirmation
-task failed precisely because it reached through the registry, and its stated
-diagnostic — that failure would indicate an import-hygiene problem — was wrong.
-Import hygiene was clean.
+Worth remembering: the rule read as correct for two revisions and failed the
+first time a task actually tried to obey it.
 
-Recording this because the rule looked correct for two revisions and only failed
-the first time something actually tried to obey it.
+---
+
+## 25. Developer context is reset periodically, with a re-entry check
+
+**Date:** 2026-07-30 · **Status:** Accepted
+
+The Developer's session context is reset periodically to keep context cost down,
+rather than carrying one session forward indefinitely.
+
+A reset session has nothing but the repository and `CLAUDE.md`, so it is given a
+re-entry task before build work resumes: establish the file tree, check each
+recorded contract against its origin in the code, and list anything in the
+repository the documentation does not account for. Discrepancies are reported,
+never reconciled.
+
+The first run found more than expected — two errors in the readout contract, four
+shapes in use but unrecorded, and rule fields settled since ADR 19 that had never
+been built. That the check doubles as a test of whether the documentation stands
+alone was a side effect, not the reason for resetting.
 
 ---
 
