@@ -431,6 +431,30 @@ rule was tested.
 
 ---
 
+## 27. The review explains all three outcomes
+
+**Date:** 2026-07-31 · **Status:** Accepted
+
+A scored round produces three outcomes: violations the player caught, violations
+they missed, and things they flagged that were fine. The review explains all
+three.
+
+Rejected: explaining only what was missed. Over-reporting is as damaging as
+under-reporting in real auditing — an auditor wrong about six of twenty findings
+costs a developer a week and loses their credibility. Scoring already deducts for
+a false alarm, but a penalty with no explanation teaches caution rather than
+judgement.
+
+Consequence for the data structure: the review captures the Inspector's readings
+at the moment of submission. A miss is explained from the rule's static
+`description`; a false alarm is explained from the measurement the player
+misjudged, and that measurement is gone once the next round renders. Exemptions —
+a control excused by the standard, such as user-agent spinner arrows — will need
+written text rather than a generated reading. Phase 1 has none, since the
+quantity control is custom.
+
+---
+
 ## Open questions
 
 Open questions are tracked in the Pending Decisions section of `CLAUDE.md`,
