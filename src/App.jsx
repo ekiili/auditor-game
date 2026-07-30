@@ -1,13 +1,18 @@
 import { useEffect, useReducer, useRef } from 'react'
 import AuditModeToggle from './components/AuditModeToggle.jsx'
+import GuessLog from './components/GuessLog.jsx'
 import ReadoutPanel from './components/ReadoutPanel.jsx'
+import RulePicker from './components/RulePicker.jsx'
 import SelectionOverlay from './components/SelectionOverlay.jsx'
 import TargetList from './components/TargetList.jsx'
 import { selectViolations } from './engine/saboteurEngine.js'
 import { levels } from './levels/index.js'
 import {
+  addGuess,
   gameReducer,
   INITIAL_STATE,
+  removeGuess,
+  selectRule,
   selectTarget,
   startRound,
   toggleAuditMode,
@@ -94,6 +99,22 @@ function App() {
             />
 
             <ReadoutPanel targetId={state.selectedTarget} containerRef={canvasRef} />
+
+            <RulePicker
+              selectedTarget={state.selectedTarget}
+              selectedRule={state.selectedRule}
+              guesses={state.guesses}
+              onSelectRule={(ruleId) => dispatch(selectRule(ruleId))}
+              onLog={() =>
+                dispatch(addGuess({ ruleId: state.selectedRule, target: state.selectedTarget }))
+              }
+            />
+
+            <GuessLog
+              guesses={state.guesses}
+              auditTargets={currentLevel.auditTargets}
+              onRemove={(guess) => dispatch(removeGuess(guess))}
+            />
           </div>
         )}
       </div>

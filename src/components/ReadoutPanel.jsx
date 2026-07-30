@@ -69,7 +69,6 @@ function ReadoutPanel({ targetId, containerRef }) {
   return (
     <section
       aria-labelledby={titleId}
-      tabIndex={-1}
       className="w-full rounded-lg border border-gray-300 bg-white p-4"
     >
       <h2 id={titleId} className="text-base font-semibold text-gray-900">
