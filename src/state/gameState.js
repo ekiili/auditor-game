@@ -17,6 +17,7 @@ export const INITIAL_STATE = {
   status: 'auditing',
   auditMode: false,
   selectedTarget: null,
+  selectedRule: null,
   truth: [],
   guesses: [],
   lastResult: null,
@@ -33,6 +34,10 @@ export function toggleAuditMode() {
 
 export function selectTarget(targetId) {
   return { type: 'selectTarget', payload: targetId }
+}
+
+export function selectRule(ruleId) {
+  return { type: 'selectRule', payload: ruleId }
 }
 
 export function addGuess(guess) {
@@ -64,13 +69,14 @@ export function gameReducer(state = INITIAL_STATE, action) {
         status: 'auditing',
         auditMode: false,
         selectedTarget: null,
+        selectedRule: null,
       }
     }
 
     case 'toggleAuditMode': {
       const auditMode = !state.auditMode
       // Leaving Audit Mode discards the selection; entering it selects nothing.
-      if (!auditMode) return { ...state, auditMode, selectedTarget: null }
+      if (!auditMode) return { ...state, auditMode, selectedTarget: null, selectedRule: null }
       return { ...state, auditMode }
     }
 
@@ -78,11 +84,18 @@ export function gameReducer(state = INITIAL_STATE, action) {
       return { ...state, selectedTarget: action.payload }
     }
 
+    case 'selectRule': {
+      return { ...state, selectedRule: action.payload }
+    }
+
     case 'addGuess': {
       const guess = action.payload
       const alreadyLogged = state.guesses.some((logged) => isSamePair(logged, guess))
       if (alreadyLogged) return state
-      return { ...state, guesses: [...state.guesses, guess] }
+      // A successful log clears the rule but keeps the element: logging a
+      // second rule against the same element is common, reusing a leftover
+      // rule against a new element is a mistake.
+      return { ...state, guesses: [...state.guesses, guess], selectedRule: null }
     }
 
     case 'removeGuess': {
@@ -119,6 +132,7 @@ export function gameReducer(state = INITIAL_STATE, action) {
         status: 'auditing',
         auditMode: false,
         selectedTarget: null,
+        selectedRule: null,
       }
     }
 
