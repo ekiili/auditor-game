@@ -1,4 +1,4 @@
-> **CLAUDE.md — v10 (2026-07-30)**
+> **CLAUDE.md — v11 (2026-07-31)**
 > This file is maintained by the Planner. Do not edit, append to, or
 > reorganize it. If you find it incomplete, ambiguous, or contradicted by
 > your task prompt, do not resolve the conflict yourself — report the
@@ -283,6 +283,7 @@ Call it against `document.activeElement`. Whether `:focus-visible` matches an un
   truth: [],
   guesses: [],
   lastResult: null,
+  lastSnapshot: null,
   history: []
 }
 ```
@@ -293,11 +294,14 @@ Call it against `document.activeElement`. Whether `:focus-visible` matches an un
 * `selectedTarget` — an `auditTargets` entry's `id`, or `null`. Cleared by `selectTarget(null)`, by `toggleAuditMode` when it turns Audit Mode off, by `startRound`, and by `nextRound`. Turning Audit Mode on selects nothing. **Survives `addGuess`**, since the player often logs more than one rule against the same element.
 * `selectedRule` — a `RULE_IDS` value, or `null`. Cleared by the same four paths as `selectedTarget`, **and additionally by a successful `addGuess`**, so the next log is a deliberate choice rather than a leftover one. A rejected duplicate `addGuess` leaves it in place.
 * `lastResult` — `null`, or the most recent **Round result**.
+* `lastSnapshot` — `null`, or the most recent **Round snapshot**. Set by `submitAudit` from its payload and cleared by `nextRound`. The reducer stores what it is given and derives nothing, exactly as it does with `truth`. Snapshots are never appended to `history`.
 * `history` — array of **Round result** objects, one per completed round.
 
 Action types are bare camelCase strings, identical to their creator names — no namespace prefix, no `SCREAMING_CASE`:
 
 `startRound` · `toggleAuditMode` · `selectTarget` · `selectRule` · `addGuess` · `removeGuess` · `submitAudit` · `nextRound`
+
+`submitAudit` carries a **Round snapshot** in its payload, using the same payload convention `startRound` uses for its violations.
 
 Any new action follows the same convention, and ships its creator and its reducer branch together.
 
@@ -317,7 +321,27 @@ Returned by `scoreRound` in `src/engine/scoring.js`, stored in `lastResult` and 
 
 The three arrays hold **Guess entries** for the first two and **Violation entries** for the third. `wasCompliant` records whether the round's Truth was empty.
 
-The review phase's own data structure is still a Pending Decision. This contract describes what scoring already produces, not what the review phase will consume.
+This contract describes what scoring produces. The evidence the review explains it with is the **Round snapshot** below.
+
+### Round snapshot
+
+Captured when the player confirms Submit, carried in `submitAudit`'s payload, and stored as `lastSnapshot`.
+
+```js
+{
+  elements: { [auditTargetId]: Readout object },
+  focus:    { [auditTargetId]: Focus readout | null }
+}
+```
+
+* Both maps hold an entry for **every** audit target in the level — all six on `ecommerce-checkout` — not only the ones the player flagged. A missed violation needs explaining as much as a false alarm does.
+* Keys are the audit target identifier: the same string that appears in `data-audit-target`, as `target` in a Violation entry, and as `id` in an `auditTargets` entry.
+* `elements` values are read live from the DOM at the moment Submit is confirmed. They are never `null`.
+* `focus` values are accumulated **during** the round as the player moves focus, not read at submission. The confirmation dialog takes focus, so nothing about the card's focus state survives to that point.
+* A `focus` value of `null` means exactly one thing: that element never received focus during the round. It never means "focused but unmeasurable." The key is always present — absence is expressed as `null`, as everywhere else in these contracts.
+* Nothing focuses an element in order to fill this in. `readout.js` never calls `.focus()`, and a reading taken from an element the player never reached is not evidence of what they saw.
+
+The snapshot exists because a false alarm is explained by the measurement the player misjudged — "it measured 44 by 44" — and that measurement is gone once the next round renders. A missed violation is explained from the rule's static `description` and needs no snapshot.
 
 ### Rule entry
 
@@ -431,6 +455,7 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 * **No live region in the Inspector.** The panel changes on every Tab, and announcing each change would talk over the target list's own announcements.
 * **The rule picker is an always-visible radio group**, never a searchable dropdown. A filter field appears above it once the rule count justifies one; at four rules there is none.
 * **The picker lists rules, not applicable rules.** It is never filtered by the current element, never by `sabotageMap`, never by what could plausibly be wrong. Every rule is offered against every target — twenty-four pairs against a `sabotageMap` of four — and narrowing the list would hand over the answer key.
+* **The review explains all three outcomes** — violations the player caught, violations they missed, and things they flagged that were fine. Over-reporting is as damaging as under-reporting in real auditing, and a scoring penalty with no explanation teaches caution rather than judgement.
 * **The guess log shows what the player logged and nothing else.** No correctness marking, no counts against Truth, no colour or icon distinguishing a real violation from a decoy. It has no access to Truth and must not acquire any.
 * **The quantity control is a custom stepper**, not a bare native number input. Native spinner arrows fall under 2.5.8's user-agent exception and would create unfair false positives.
 * **No test framework.** Throwaway Node scripts, deleted before commit.
@@ -474,7 +499,7 @@ Sabotage is random per page load. A single observation of a rendered level descr
 
 Genuinely unsettled. This list is authoritative; `docs/decisions.md` points here rather than maintaining its own copy. If a task requires one of these, stop and ask:
 
-* **Review phase data structure.** Outline plus badge with an explanatory panel on hover is agreed; the data structure behind it is not. `scoreRound` already produces and retains false-positive data, but whether the review **explains** false positives — including exempt cases such as the user-agent spinner exception — is open.
+* **Explaining exemptions.** A control excused by the standard — user-agent spinner arrows under 2.5.8, for instance — cannot be explained from a reading, because the exemption is not visible in the DOM. It needs written text per exemption. Phase 1 has none, since the quantity control is custom.
 * **End-of-session report contents** beyond "what the player missed." The mechanism exists — `history` accumulates every round and `nextRound` reaches `gameOver` — but the contents are undefined.
 * **Rule list scope.** Whether the rule picker eventually lists every WCAG 2.2 AA success criterion, or only those introduced so far. `WCAG_RULES` currently holds only the four Phase 1 criteria; that is the current state, not a decision.
 * **Grouping threshold.** The rule count at which the picker switches from a flat list to `<fieldset>`/`<legend>` groups by principle, and at which the filter field appears.
