@@ -1,4 +1,4 @@
-> **CLAUDE.md — v6 (2026-07-30)**
+> **CLAUDE.md — v7 (2026-07-30)**
 > This file is maintained by the Planner. Do not edit, append to, or
 > reorganize it. If you find it incomplete, ambiguous, or contradicted by
 > your task prompt, do not resolve the conflict yourself — report the
@@ -16,7 +16,7 @@ Target standard: **WCAG 2.2 Level AA** (the European Accessibility Act baseline)
 
 Phase 1 covers a single level — an E-commerce Checkout Card — and four violations. The architecture assumes more levels will follow.
 
-The full product specification is at `docs/prd.md`. Where the PRD and this file disagree, this file wins.
+The full product specification is at `docs/prd.md`. Where the PRD and this file disagree, this file wins; where a task prompt and this file disagree, **stop and report**.
 
 ## Core Tech Stack
 
@@ -67,20 +67,23 @@ Variant values live in `src/levels/<level>/variants.js` as frozen constants, imp
 
 Never name a prop `isBroken`, `isBugActive`, `hasViolation`, or similar, and never write a comment inside a component describing anything as a bug.
 
-**Phase 1 — the complete `ecommerce-checkout` contract:**
+Current contract for `ecommerce-checkout`:
 
-| Rule | Audit target | Prop | Compliant (default) | Variant | Failure mode |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **1.1.1** Non-text Content | `product-image` | `imageAlt` | descriptive string | `undefined` | Image has no accessible description. |
-| **3.3.2** Labels or Instructions | `quantity-input` | `labelMode` | `'programmatic'` | `'visual-only'` | Visible label text is not programmatically associated. |
-| **2.4.7** Focus Visible | `add-to-cart` | `focusStyle` | `'visible'` | `'none'` | Keyboard focus indicator is absent. |
-| **2.5.8** Target Size (Minimum) | `remove-item` | `removeButtonSize` | `'default'` | `'compact'` | Touch target is 16px, below the 24px minimum. |
+| Prop | Compliant (default) | Variant | Rule |
+| :--- | :--- | :--- | :--- |
+| `imageAlt` | descriptive string | `undefined` | 1.1.1 |
+| `labelMode` | `'programmatic'` | `'visual-only'` | 3.3.2 |
+| `focusStyle` | `'visible'` | `'none'` | 2.4.7 |
+| `removeButtonSize` | `'default'` | `'compact'` | 2.5.8 |
 
 ### Levels
 
-Each level is a self-contained directory exporting one object from its `index.js`. Its fields are defined by the **Level module** contract below.
+Each level is a self-contained directory exporting one object from its `index.js`. Its shape is the **Level module** contract below.
 
-`auditTargets` and `sabotageMap` are deliberately different lengths. The player may guess any target × any rule combination; only pairs in `sabotageMap` are ever injected. **Never derive the player's options from `sabotageMap`** — that hands over the answer key. The quantity stepper buttons are permanent decoys.
+* **`auditTargets`** — every element the player can point at, with a human-readable label. Includes elements that are never broken.
+* **`sabotageMap`** — the (rule, target) pairs this level can actually break.
+
+These lists are deliberately different lengths. The player may guess any target × any rule combination; only pairs in `sabotageMap` are ever injected. **Never derive the player's options from `sabotageMap`** — that hands over the answer key. The quantity stepper buttons are permanent decoys.
 
 `src/levels/index.js` is a registry array. Nothing imports a level by name; consumers iterate the registry.
 
@@ -126,7 +129,7 @@ Some of these do not exist yet. Build only what your current task specifies.
 
 Vite resolves the extensionless and directory forms by convention; native Node does not.
 
-A **pure module** is one that transitively imports no `.jsx`. Every pure module must stay importable by plain `node`, because verification in this project runs under plain `node`.
+A **pure module** is one that transitively imports no `.jsx`. Every pure module must stay importable by plain `node`, because throwaway Node scripts are this project's only verification mechanism.
 
 Modules that reach JSX are outside that rule. The level `index.js` files are permanently among them by construction: the Level module contract requires a `Component`, and `node` cannot parse `.jsx` at all. This is a property of the architecture, not a defect, and must not be "fixed."
 
@@ -178,7 +181,7 @@ The single object exported from `src/levels/<level>/index.js`:
 * `id` — string, unique across the registry, matching the level's directory name.
 * `name` — string, human-readable level name.
 * `Component` — the React component. Renders a fully compliant baseline when given no props.
-* `auditTargets` — array. Every element the player can point at, including ones that are never broken.
+* `auditTargets` — array. Every element the player can point at. Longer than `sabotageMap`.
 * `sabotageMap` — array. The (rule, target) pairs this level can break.
 * `applySabotage` — pure function. Takes an array of **Violation entries**, returns a **Sabotage props object**.
 
@@ -309,7 +312,7 @@ The three arrays hold **Guess entries** for the first two and **Violation entrie
 
 The review phase's own data structure is still a Pending Decision. This contract describes what scoring already produces, not what the review phase will consume.
 
-### Rule entry — specified, not yet implemented
+### Rule entry
 
 Each entry in `WCAG_RULES` in `src/data/wcagRules.js`:
 
@@ -331,7 +334,7 @@ Each entry in `WCAG_RULES` in `src/data/wcagRules.js`:
 * `principle` — a member of `PRINCIPLES`, never a string literal.
 * `keywords` — lowercase search terms for the picker's filter field. Never displayed.
 
-`PRINCIPLES` is a frozen constant exported from the same file, with members `Perceivable`, `Operable`, `Understandable`, and `Robust`.
+`PRINCIPLES` is a frozen constant exported from the same file, with members `Perceivable`, `Operable`, `Understandable`, and `Robust`. Each entry's `keywords` array is frozen too.
 
 The three text fields have distinct jobs and none substitutes for another: `shortLabel` is what the player scans, `name` is what the standard calls it, `description` is what the review phase explains with.
 
@@ -387,9 +390,18 @@ All baseline code must strictly adhere to WCAG 2.2 AA:
 * `useId()` for all form element ids. Hardcoded ids break label association when a component renders twice.
 * Complete Tailwind class strings in lookup maps. Tailwind scans source text, so `` `h-${size}` `` generates no CSS.
 
-### Phase 1 Audit Targets
+### Phase 1 Violation Set
 
-Six elements carry `data-audit-target`. The four that can be broken are in the Variant Props table above; the last two are decoys — always compliant, always flaggable.
+| Rule | Target | Failure mode |
+| :--- | :--- | :--- |
+| **1.1.1** Non-text Content | `product-image` | Image has no accessible description. |
+| **3.3.2** Labels or Instructions | `quantity-input` | Visible label text is not programmatically associated. |
+| **2.4.7** Focus Visible | `add-to-cart` | Keyboard focus indicator is absent. |
+| **2.5.8** Target Size (Minimum) | `remove-item` | Touch target is 16px, below the 24px minimum. |
+
+### Audit Targets
+
+Six elements carry `data-audit-target`. The last two are decoys — always compliant, always flaggable.
 
 `product-image` · `quantity-input` · `add-to-cart` · `remove-item` · `quantity-decrease` · `quantity-increase`
 
@@ -401,8 +413,7 @@ The attribute is a neutral identifier. It never indicates whether an element is 
 
 Recorded here so they are not re-litigated. Full reasoning is in `docs/decisions.md`.
 
-A decision that has a **shape** belongs in Data Contracts, not here. This section holds only choices with no shape — behaviour, policy, and rationale.
-
+* **Guesses are (element + rule) pairs.** Both must match for a true positive.
 * **Scoring:** +1 per true positive, −1 per false positive, −1 per false negative. A correct empty submission on a clean round scores +1. Round scores may go negative and are not clamped. Values are provisional and defined as named constants for tuning.
 * **No "Declare Compliant" control.** Submit means "I have logged every violation I found." An empty log is a valid answer, guarded by a confirmation step.
 * **Audit Mode starts off** each round, so the player can use the component normally first.
@@ -411,9 +422,11 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 * **Element selection is list-primary.** The player selects from a list of the level's audit targets. Canvas clicking also works, via one delegated handler using `closest('[data-audit-target]')`, so the level component stays unaware the game exists.
 * **The selection highlight is a separate positioned overlay**, sized from the element's bounding rectangle. It is never drawn as a style on the audited element — `outline`, `border`, and `background` are each either an audited property or affect measured target size.
 * **The Inspector's target list uses visually hidden native radio inputs**, inheriting arrow-key navigation and position announcements rather than reimplementing them.
+* **Rules are presented in plain language.** `shortLabel` is primary text, criterion number and official name secondary. See the Rule entry contract.
 * **The rule picker is a filter field above an always-visible radio group**, not a searchable dropdown. Rules are never filtered by the selected element.
+* **Rule data carries `principle`** as an explicit field from the start, alongside a frozen `PRINCIPLES` constant, even though nothing renders groups yet.
 * **The quantity control is a custom stepper**, not a bare native number input. Native spinner arrows fall under 2.5.8's user-agent exception and would create unfair false positives.
-* **No test framework.** Throwaway Node scripts, deleted before commit.
+* **No test framework.** Verification uses throwaway Node scripts, deleted before commit.
 
 ## Terminology
 
@@ -421,7 +434,7 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 * **Guesses** — what the player has logged.
 * **True Positive / False Positive / False Negative** — the three scoring outcomes.
 * **Baseline** — a level component rendered with no props.
-* **Audit target** — an element the player can point at, identified by its `data-audit-target` value. Called `target` in every contract except `auditTargets`, where the field is named `id`.
+* **Target** — the component currently in the center canvas.
 * **Pure module** — a module that transitively imports no `.jsx`, and therefore loads under plain `node`.
 * Rule IDs are WCAG numbers as strings: `"1.1.1"`, `"3.3.2"`, `"2.4.7"`, `"2.5.8"`. They appear as literals **only** in `src/data/wcagRules.js`; everything else imports `RULE_IDS`.
 
@@ -429,6 +442,7 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 
 * Quote this file's version line at the top of every task report.
 * Before declaring done: `npm run dev` clean, `npm run build` succeeds, `npm run preview` works at the base path.
+* When verifying against a running server, confirm the port it actually bound to. A stale process from an earlier session can hold the default port and serve an old build, producing a pass against the wrong artifact.
 * Verify visually and behaviourally, not just by config. State how you verified each claim.
 * Report deviations and why, rather than deviating silently.
 * Conventional commit prefixes: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`. These bind your commits. Commits made directly by the repository owner may not carry them, and that is not a discrepancy to report.
