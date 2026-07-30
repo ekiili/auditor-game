@@ -1,4 +1,4 @@
-> **CLAUDE.md — v7 (2026-07-30)**
+> **CLAUDE.md — v8 (2026-07-30)**
 > This file is maintained by the Planner. Do not edit, append to, or
 > reorganize it. If you find it incomplete, ambiguous, or contradicted by
 > your task prompt, do not resolve the conflict yourself — report the
@@ -16,7 +16,7 @@ Target standard: **WCAG 2.2 Level AA** (the European Accessibility Act baseline)
 
 Phase 1 covers a single level — an E-commerce Checkout Card — and four violations. The architecture assumes more levels will follow.
 
-The full product specification is at `docs/prd.md`. Where the PRD and this file disagree, this file wins; where a task prompt and this file disagree, **stop and report**.
+The full product specification is at `docs/prd.md`. Where the PRD and this file disagree, this file wins.
 
 ## Core Tech Stack
 
@@ -25,7 +25,7 @@ The full product specification is at `docs/prd.md`. Where the PRD and this file 
 * **Tailwind CSS v4**, CSS-first configuration. There is no `tailwind.config.js`; v4 auto-detects sources. Theme customization, if ever needed, goes in an `@theme` block in `src/index.css`.
 * **`lucide-react`** — local SVG icons
 * **`dom-accessibility-api`** — spec-correct accessible name computation for the Inspector (approved 2026-07-29)
-* **oxlint** — the linter in this repo. It is not ESLint; rule names differ.
+* **oxlint** — the linter in this repo. It is not ESLint; rule names differ. Enabled plugins are `react` and `oxc`; `jsx-a11y` is not enabled.
 
 Build machinery pulled in by the above — `@vitejs/plugin-react`, `postcss`, `@tailwindcss/postcss`, `autoprefixer` — is expected and not a deviation.
 
@@ -67,23 +67,20 @@ Variant values live in `src/levels/<level>/variants.js` as frozen constants, imp
 
 Never name a prop `isBroken`, `isBugActive`, `hasViolation`, or similar, and never write a comment inside a component describing anything as a bug.
 
-Current contract for `ecommerce-checkout`:
+**Phase 1 — the complete `ecommerce-checkout` contract:**
 
-| Prop | Compliant (default) | Variant | Rule |
-| :--- | :--- | :--- | :--- |
-| `imageAlt` | descriptive string | `undefined` | 1.1.1 |
-| `labelMode` | `'programmatic'` | `'visual-only'` | 3.3.2 |
-| `focusStyle` | `'visible'` | `'none'` | 2.4.7 |
-| `removeButtonSize` | `'default'` | `'compact'` | 2.5.8 |
+| Rule | Audit target | Prop | Compliant (default) | Variant | Failure mode |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **1.1.1** Non-text Content | `product-image` | `imageAlt` | descriptive string | `undefined` | Image has no accessible description. |
+| **3.3.2** Labels or Instructions | `quantity-input` | `labelMode` | `'programmatic'` | `'visual-only'` | Visible label text is not programmatically associated. |
+| **2.4.7** Focus Visible | `add-to-cart` | `focusStyle` | `'visible'` | `'none'` | Keyboard focus indicator is absent. |
+| **2.5.8** Target Size (Minimum) | `remove-item` | `removeButtonSize` | `'default'` | `'compact'` | Touch target is 16px, below the 24px minimum. |
 
 ### Levels
 
-Each level is a self-contained directory exporting one object from its `index.js`. Its shape is the **Level module** contract below.
+Each level is a self-contained directory exporting one object from its `index.js`. Its fields are defined by the **Level module** contract below.
 
-* **`auditTargets`** — every element the player can point at, with a human-readable label. Includes elements that are never broken.
-* **`sabotageMap`** — the (rule, target) pairs this level can actually break.
-
-These lists are deliberately different lengths. The player may guess any target × any rule combination; only pairs in `sabotageMap` are ever injected. **Never derive the player's options from `sabotageMap`** — that hands over the answer key. The quantity stepper buttons are permanent decoys.
+`auditTargets` and `sabotageMap` are deliberately different lengths. The player may guess any target × any rule combination; only pairs in `sabotageMap` are ever injected. **Never derive the player's options from `sabotageMap`** — that hands over the answer key. The quantity stepper buttons are permanent decoys.
 
 `src/levels/index.js` is a registry array. Nothing imports a level by name; consumers iterate the registry.
 
@@ -97,7 +94,10 @@ src/
 ├─ main.jsx
 ├─ App.jsx
 ├─ index.css
-├─ components/                     shared, level-agnostic UI (HUD, Inspector)
+├─ components/                     shared, level-agnostic UI
+│  ├─ AuditModeToggle.jsx
+│  ├─ TargetList.jsx
+│  └─ SelectionOverlay.jsx
 ├─ data/
 │  └─ wcagRules.js                 static rule data only — no logic
 ├─ engine/
@@ -129,7 +129,7 @@ Some of these do not exist yet. Build only what your current task specifies.
 
 Vite resolves the extensionless and directory forms by convention; native Node does not.
 
-A **pure module** is one that transitively imports no `.jsx`. Every pure module must stay importable by plain `node`, because throwaway Node scripts are this project's only verification mechanism.
+A **pure module** is one that transitively imports no `.jsx`. Every pure module must stay importable by plain `node`, because verification in this project runs under plain `node`.
 
 Modules that reach JSX are outside that rule. The level `index.js` files are permanently among them by construction: the Level module contract requires a `Component`, and `node` cannot parse `.jsx` at all. This is a property of the architecture, not a defect, and must not be "fixed."
 
@@ -181,7 +181,7 @@ The single object exported from `src/levels/<level>/index.js`:
 * `id` — string, unique across the registry, matching the level's directory name.
 * `name` — string, human-readable level name.
 * `Component` — the React component. Renders a fully compliant baseline when given no props.
-* `auditTargets` — array. Every element the player can point at. Longer than `sabotageMap`.
+* `auditTargets` — array. Every element the player can point at, including ones that are never broken.
 * `sabotageMap` — array. The (rule, target) pairs this level can break.
 * `applySabotage` — pure function. Takes an array of **Violation entries**, returns a **Sabotage props object**.
 
@@ -265,7 +265,7 @@ Call it against `document.activeElement`. Whether `:focus-visible` matches an un
 
 ### Game state
 
-`src/state/gameState.js` exports `INITIAL_STATE`, `gameReducer`, and six action creators.
+`src/state/gameState.js` exports `INITIAL_STATE`, `gameReducer`, and seven action creators.
 
 ```js
 {
@@ -275,6 +275,7 @@ Call it against `document.activeElement`. Whether `:focus-visible` matches an un
   score: 0,
   status: 'auditing',
   auditMode: false,
+  selectedTarget: null,
   truth: [],
   guesses: [],
   lastResult: null,
@@ -285,12 +286,13 @@ Call it against `document.activeElement`. Whether `:focus-visible` matches an un
 * `truth` — array of **Violation entries**. Passed in by `startRound`; the reducer never generates it.
 * `guesses` — array of **Guess entries**.
 * `status` — one of `'auditing'`, `'reviewing'`, `'gameOver'`.
+* `selectedTarget` — an `auditTargets` entry's `id`, or `null`. Cleared by `selectTarget(null)`, by `toggleAuditMode` when it turns Audit Mode off, by `startRound`, and by `nextRound`. Turning Audit Mode on selects nothing.
 * `lastResult` — `null`, or the most recent **Round result**.
 * `history` — array of **Round result** objects, one per completed round.
 
 Action types are bare camelCase strings, identical to their creator names — no namespace prefix, no `SCREAMING_CASE`:
 
-`startRound` · `toggleAuditMode` · `addGuess` · `removeGuess` · `submitAudit` · `nextRound`
+`startRound` · `toggleAuditMode` · `selectTarget` · `addGuess` · `removeGuess` · `submitAudit` · `nextRound`
 
 Any new action follows the same convention, and ships its creator and its reducer branch together.
 
@@ -366,10 +368,12 @@ The Inspector computes its readout from the rendered elements — `getComputedSt
 The sole sanctioned exception is `document.getElementById('root')` in `main.jsx`, which React requires to mount.
 
 **6. Never Auto-Correct Injected Violations.**
-Code producing an accessibility violation via a variant prop is intentional. Do not fix it, do not comment on it, do not "improve" it while editing nearby lines, and do not refactor it toward compliance. If oxlint's jsx-a11y rules flag these paths, add a narrowly scoped disable comment and report it — never change behaviour to satisfy a linter.
+Code producing an accessibility violation via a variant prop is intentional. Do not fix it, do not comment on it, do not "improve" it while editing nearby lines, and do not refactor it toward compliance. If a linter flags these paths, add a narrowly scoped disable comment and report it — never change behaviour to satisfy a linter.
 
 **7. Audit Mode Intercepts, It Does Not Rewrite.**
-When Audit Mode suppresses link navigation or form submission, do it with React event handlers and `preventDefault()`. Never strip `href`, swap a `<button>` for a `<div>`, add `disabled`, or unmount elements. Altering the markup would change the exact accessibility properties the player is being asked to judge.
+When Audit Mode suppresses link navigation, form submission, or control activation, do it with React event handlers and `preventDefault()`. Never strip `href`, swap a `<button>` for a `<div>`, add `disabled`, add `tabindex="-1"`, or unmount elements. Altering the markup would change the exact accessibility properties the player is being asked to judge.
+
+**Suppress activation, never focus.** The player tests 2.4.7 by tabbing to a control and looking for a focus indicator. Anything that removes a control from the tab order destroys the thing being audited.
 
 **8. Step-by-Step Execution.**
 Do not build ahead. If asked to build a button, build only that button. Do not invent game loops, menus, routing, animations, or extra features unless explicitly instructed. If a task's scope is ambiguous, ask rather than resolving it silently.
@@ -390,18 +394,11 @@ All baseline code must strictly adhere to WCAG 2.2 AA:
 * `useId()` for all form element ids. Hardcoded ids break label association when a component renders twice.
 * Complete Tailwind class strings in lookup maps. Tailwind scans source text, so `` `h-${size}` `` generates no CSS.
 
-### Phase 1 Violation Set
+`jsx-a11y` is not enabled in this repo's linter, so none of the above is machine-checked. It is verified by reading and by behavioural testing only.
 
-| Rule | Target | Failure mode |
-| :--- | :--- | :--- |
-| **1.1.1** Non-text Content | `product-image` | Image has no accessible description. |
-| **3.3.2** Labels or Instructions | `quantity-input` | Visible label text is not programmatically associated. |
-| **2.4.7** Focus Visible | `add-to-cart` | Keyboard focus indicator is absent. |
-| **2.5.8** Target Size (Minimum) | `remove-item` | Touch target is 16px, below the 24px minimum. |
+### Phase 1 Audit Targets
 
-### Audit Targets
-
-Six elements carry `data-audit-target`. The last two are decoys — always compliant, always flaggable.
+Six elements carry `data-audit-target`. The four that can be broken are in the Variant Props table above; the last two are decoys — always compliant, always flaggable.
 
 `product-image` · `quantity-input` · `add-to-cart` · `remove-item` · `quantity-decrease` · `quantity-increase`
 
@@ -413,20 +410,20 @@ The attribute is a neutral identifier. It never indicates whether an element is 
 
 Recorded here so they are not re-litigated. Full reasoning is in `docs/decisions.md`.
 
-* **Guesses are (element + rule) pairs.** Both must match for a true positive.
+A decision that has a **shape** belongs in Data Contracts, not here. This section holds only choices with no shape — behaviour, policy, and rationale.
+
 * **Scoring:** +1 per true positive, −1 per false positive, −1 per false negative. A correct empty submission on a clean round scores +1. Round scores may go negative and are not clamped. Values are provisional and defined as named constants for tuning.
 * **No "Declare Compliant" control.** Submit means "I have logged every violation I found." An empty log is a valid answer, guarded by a confirmation step.
 * **Audit Mode starts off** each round, so the player can use the component normally first.
-* **Audit Mode off means no visible game.** Before Audit Mode is enabled the page looks like an ordinary website — no Inspector, no overlays, no annotations over the card.
+* **Audit Mode off means no visible game.** Before Audit Mode is enabled the page looks like an ordinary website — no Inspector, no overlays, no annotations over the card. The target list and overlay are absent from the DOM, not hidden.
+* **Interception is capture-phase**, on a sizing-only wrapper around the level component. A bubble-phase handler runs after the card's own handler has already fired. The wrapper adds no padding, margin, border, or transform — a transform would create a containing block and move the overlay.
 * **The Inspector reports facts, not verdicts.** It shows role, accessible name, dimensions, and focus styles in neutral styling. Empty values are never coloured, iconed, or flagged. The absence is the signal; noticing it is the skill.
 * **Element selection is list-primary.** The player selects from a list of the level's audit targets. Canvas clicking also works, via one delegated handler using `closest('[data-audit-target]')`, so the level component stays unaware the game exists.
-* **The selection highlight is a separate positioned overlay**, sized from the element's bounding rectangle. It is never drawn as a style on the audited element — `outline`, `border`, and `background` are each either an audited property or affect measured target size.
-* **The Inspector's target list uses visually hidden native radio inputs**, inheriting arrow-key navigation and position announcements rather than reimplementing them.
-* **Rules are presented in plain language.** `shortLabel` is primary text, criterion number and official name secondary. See the Rule entry contract.
+* **The selection highlight is a separate positioned overlay**, sized to exactly the element's bounding rectangle. The visible ring is an `outline` with `outline-offset` on the overlay, which reads as surrounding the element without changing any measured rectangle. It is never drawn as a style on the audited element — `outline`, `border`, and `background` are each either an audited property or affect measured target size.
+* **The Inspector's target list uses visually hidden native radio inputs**, inside a `<fieldset>` with a visible `<legend>`, inheriting arrow-key navigation and position announcements rather than reimplementing them. Visually hidden means `sr-only` — never `display:none`, `hidden`, or `aria-hidden`.
 * **The rule picker is a filter field above an always-visible radio group**, not a searchable dropdown. Rules are never filtered by the selected element.
-* **Rule data carries `principle`** as an explicit field from the start, alongside a frozen `PRINCIPLES` constant, even though nothing renders groups yet.
 * **The quantity control is a custom stepper**, not a bare native number input. Native spinner arrows fall under 2.5.8's user-agent exception and would create unfair false positives.
-* **No test framework.** Verification uses throwaway Node scripts, deleted before commit.
+* **No test framework.** Throwaway Node scripts, deleted before commit.
 
 ## Terminology
 
@@ -434,7 +431,7 @@ Recorded here so they are not re-litigated. Full reasoning is in `docs/decisions
 * **Guesses** — what the player has logged.
 * **True Positive / False Positive / False Negative** — the three scoring outcomes.
 * **Baseline** — a level component rendered with no props.
-* **Target** — the component currently in the center canvas.
+* **Audit target** — an element the player can point at, identified by its `data-audit-target` value. Called `target` in every contract except `auditTargets`, where the field is named `id`.
 * **Pure module** — a module that transitively imports no `.jsx`, and therefore loads under plain `node`.
 * Rule IDs are WCAG numbers as strings: `"1.1.1"`, `"3.3.2"`, `"2.4.7"`, `"2.5.8"`. They appear as literals **only** in `src/data/wcagRules.js`; everything else imports `RULE_IDS`.
 
@@ -443,6 +440,7 @@ Recorded here so they are not re-litigated. Full reasoning is in `docs/decisions
 * Quote this file's version line at the top of every task report.
 * Before declaring done: `npm run dev` clean, `npm run build` succeeds, `npm run preview` works at the base path.
 * When verifying against a running server, confirm the port it actually bound to. A stale process from an earlier session can hold the default port and serve an old build, producing a pass against the wrong artifact.
+* Browser-level verification uses Playwright, resolved from the local npx cache. It is **not** a project dependency and must not be added to `package.json`.
 * Verify visually and behaviourally, not just by config. State how you verified each claim.
 * Report deviations and why, rather than deviating silently.
 * Conventional commit prefixes: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`. These bind your commits. Commits made directly by the repository owner may not carry them, and that is not a discrepancy to report.
@@ -470,3 +468,4 @@ Genuinely unsettled. This list is authoritative; `docs/decisions.md` points here
 * **End-of-session report contents** beyond "what the player missed." The mechanism exists — `history` accumulates every round and `nextRound` reaches `gameOver` — but the contents are undefined.
 * **Rule list scope.** Whether the rule picker eventually lists every WCAG 2.2 AA success criterion, or only those introduced so far. `WCAG_RULES` currently holds only the four Phase 1 criteria; that is the current state, not a decision.
 * **Grouping threshold.** The rule count at which the picker switches from a flat list to `<fieldset>`/`<legend>` groups by principle, and at which the filter field appears.
+* **Keyboard suppression scope.** Audit Mode currently suppresses Enter and Space. Arrow keys and digit entry still reach `quantity-input` and change its value. Whether to suppress those too is open.
