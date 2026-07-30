@@ -410,6 +410,27 @@ alone was a side effect, not the reason for resetting.
 
 ---
 
+## 26. The Inspector describes one element, and the highlight yields to keyboard focus
+
+**Date:** 2026-07-30 · **Status:** Accepted
+
+The Inspector panel always describes the element the player most recently moved
+to, however they reached it — clicking the canvas, choosing it from the target
+list, or tabbing to it.
+
+Rejected: separate "selected element" and "currently focused" sections. Two
+elements described at once is harder to read, and a focus section that stays
+empty until the player tabs to the right element would make emptiness ambiguous.
+The game depends on an empty value meaning something is missing.
+
+The selection highlight is hidden while the current element has keyboard focus,
+so the player sees that element's own focus styling or its absence. Our highlight
+would otherwise read as a focus indicator on an element sabotaged to have none,
+and 2.4.7 is one of the four Phase 1 violations — it would happen every time that
+rule was tested.
+
+---
+
 ## Open questions
 
 Open questions are tracked in the Pending Decisions section of `CLAUDE.md`,
