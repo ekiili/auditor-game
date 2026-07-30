@@ -1,4 +1,4 @@
-> **CLAUDE.md — v4 (2026-07-29)**
+> **CLAUDE.md — v5 (2026-07-29)**
 > This file is maintained by the Planner. Do not edit, append to, or
 > reorganize it. If you find it incomplete, ambiguous, or contradicted by
 > your task prompt, do not resolve the conflict yourself — report the
@@ -98,7 +98,8 @@ src/
 │  └─ wcagRules.js                 static rule data only — no logic
 ├─ engine/
 │  ├─ saboteurEngine.js            violation selection
-│  └─ scoring.js                   guess comparison
+│  ├─ scoring.js                   guess comparison
+│  └─ readout.js                   live-DOM inspection — read-only
 ├─ state/
 │  └─ gameState.js                 reducer and round lifecycle
 └─ levels/
@@ -122,7 +123,13 @@ Some of these do not exist yet. Build only what your current task specifies.
 * Directory imports are written **to the file**: `../levels/index.js`, never `../levels`.
 * Bare package imports are unaffected: `react`, `lucide-react`, `dom-accessibility-api`.
 
-Vite resolves the extensionless and directory forms by convention; native Node does not. Every pure module must stay importable by plain `node`, because throwaway Node scripts are this project's only verification mechanism. An import that resolves in the dev server but fails under `node` removes the ability to prove the module works.
+Vite resolves the extensionless and directory forms by convention; native Node does not.
+
+A **pure module** is one that transitively imports no `.jsx`. Every pure module must stay importable by plain `node`, because throwaway Node scripts are this project's only verification mechanism.
+
+Modules that reach JSX are outside that rule. The level `index.js` files are permanently among them by construction: the Level module contract requires a `Component`, and `node` cannot parse `.jsx` at all. This is a property of the architecture, not a defect, and must not be "fixed."
+
+**A verification script imports the pure module it needs directly** — `sabotage.js`, `variants.js`, `saboteurEngine.js`, `scoring.js`, `gameState.js`, `wcagRules.js` — never a level `index.js` or the registry. A script that fails with `ERR_UNKNOWN_FILE_EXTENSION` is reaching through a component; point it at the pure module instead and report that the task prompt sent it the wrong way.
 
 ---
 
@@ -164,22 +171,82 @@ The single object exported from `src/levels/<level>/index.js`:
 ```
 
 * `id` — string, unique across the registry, matching the level's directory name.
-* `name` — human-readable level name.
+* `name` — string, human-readable level name.
 * `Component` — the React component. Renders a fully compliant baseline when given no props.
-* `auditTargets` — array. Every element the player can point at, each carrying a human-readable label. Longer than `sabotageMap`.
+* `auditTargets` — array. Every element the player can point at. Longer than `sabotageMap`.
 * `sabotageMap` — array. The (rule, target) pairs this level can break.
 * `applySabotage` — pure function. Takes an array of **Violation entries**, returns a props object for `Component`.
 
-The entry shapes inside `auditTargets` and `sabotageMap` are **not yet recorded** — see below.
+An **`auditTargets` entry**:
+
+```js
+{ id: string, label: string }
+```
+
+* `id` — matches a `data-audit-target` attribute value.
+* `label` — player-facing text.
+
+A **`sabotageMap` entry** is identical to a Violation entry:
+
+```js
+{ ruleId: string, target: string }
+```
+
+**The element identifier is called `id` in `auditTargets` and `target` everywhere else.** This is recorded as fact. Code moving between the two translates explicitly and at one visible point. Do not rename either side to match the other.
+
+### Readout object
+
+Returned by `inspectElement(element)` in `src/engine/readout.js`:
+
+```js
+{
+  tagName: string,
+  role: string,
+  accessibleName: string | null,
+  accessibleDescription: string | null,
+  width: number,
+  height: number,
+  attributes: object
+}
+```
+
+All seven keys are **always present**. A missing value is `null`; the key is never omitted. `width` and `height` are CSS pixels from the element's bounding rectangle.
+
+`attributes` is a **present-only map** — it holds only the attributes the element actually carries, so its key set is data about that element, not part of this contract. `readout.js` can report seven attributes; on `ecommerce-checkout` only `alt`, `type`, `id`, and `aria-label` ever appear. `aria-labelledby`, `aria-describedby`, and `title` are reportable but unused at this level.
+
+Never test whether a top-level key exists in order to decide whether a value is missing. Read the value and compare it to `null`.
+
+### Game state
+
+`src/state/gameState.js` exports `INITIAL_STATE`, `gameReducer`, and six action creators.
+
+```js
+{
+  levelId: null,
+  round: 1,
+  totalRounds: 10,
+  score: 0,
+  status: 'auditing',
+  auditMode: false,
+  truth: [],
+  guesses: [],
+  lastResult: null,
+  history: []
+}
+```
+
+* `truth` — array of **Violation entries**. Passed in by `startRound`; the reducer never generates it.
+* `guesses` — array of **Guess entries**.
+
+Action types are bare camelCase strings, identical to their creator names — no namespace prefix, no `SCREAMING_CASE`:
+
+`startRound` · `toggleAuditMode` · `addGuess` · `removeGuess` · `submitAudit` · `nextRound`
+
+Any new action follows the same convention, and ships its creator and its reducer branch together.
 
 ### Unrecorded contracts
 
-The following shapes are shared across layers but are **not yet written down here**. They exist in the repository; they have not been confirmed into this file.
-
-* **Readout object** — returned by `inspectElement` in `src/levels/.../readout.js`.
-* **Game state** — the shape of the `gameState.js` reducer's state, and its action names. Only `startRound` is confirmed, and only that its payload carries the round's violations rather than generating them.
-* **`auditTargets` entry** — the exact key names of a single audit target.
-* **`sabotageMap` entry** — the exact key names of a single breakable pair.
+* **`inspectFocus` return value** — `src/engine/readout.js` exports `inspectFocus(element)` alongside `inspectElement`. Its return shape has not been captured.
 
 **No task may depend on an unrecorded shape.** If a task requires one, stop and report rather than inferring it from surrounding code — an inferred contract that happens to be wrong is the exact failure this section exists to prevent.
 
@@ -274,6 +341,7 @@ Recorded here so they are not re-litigated. Full reasoning is in `docs/decisions
 * **True Positive / False Positive / False Negative** — the three scoring outcomes.
 * **Baseline** — a level component rendered with no props.
 * **Target** — the component currently in the center canvas.
+* **Pure module** — a module that transitively imports no `.jsx`, and therefore loads under plain `node`.
 * Rule IDs are WCAG numbers as strings: `"1.1.1"`, `"3.3.2"`, `"2.4.7"`, `"2.5.8"`. They appear as literals **only** in `src/data/wcagRules.js`; everything else imports `RULE_IDS`.
 
 ## Workflow & Verification
@@ -294,6 +362,10 @@ Reports are **exceptions-first**.
 * Expand only for: deviations from the prompt, figures the prompt explicitly asked to see, and failures.
 * Where a prompt asks for real output — counts, printed objects, command results — paste the actual output. Do not describe it or summarise it as "works as expected."
 * A long report about a task that went cleanly is a defect in the report, not evidence of thoroughness.
+
+### Sampling Randomised Behaviour
+
+Sabotage is random per page load. A single observation of a rendered level describes one round, not the level. Any claim about what a level "always" or "never" does must be drawn from repeated loads, and the report states how many.
 
 ## Pending Decisions — Ask, Don't Assume
 
