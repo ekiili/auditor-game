@@ -455,6 +455,57 @@ quantity control is custom.
 
 ---
 
+## 28. — Review phase uses static marks on the card with interaction in the list
+
+**Date:** 2026-07-31 · **Status:** Accepted
+
+The review phase marks every affected element on the card with a static,
+non-interactive outline coded by outcome, so the whole result is visible at
+once. All interaction — selecting a finding, reading its explanation — happens
+in the chrome column list, reusing the existing list-primary selection pattern
+and the selection highlight overlay.
+
+Chosen over badges on the card, which would have added focusable controls on
+top of a component that already has its own, and would have required a second
+positioned-overlay system. Chosen over a list-only review, which never shows
+the component as a whole.
+
+Supersedes the earlier convention of an outline plus badge with a hover panel,
+which was decided before the viewport-locked layout and before list-primary
+selection existed.
+
+Consequence: outcome coding may not rely on colour alone.
+
+---
+
+## 29. Review phase mark styles
+
+**Date:** 2026-07-31 · **Status:** Accepted
+
+Each marked element in the review carries a line style that identifies its
+outcome:
+
+- Missed violation — dashed
+- False alarm — dotted
+- Caught violation — double, falling back to solid when the element's smaller
+  dimension is under 24px
+
+The fallback exists because a double line stops reading as two lines on small
+targets. The threshold is evaluated against the width and height already
+recorded in the Round snapshot at submit, so no measurement is added at review
+time.
+
+Line style, not colour, is the primary distinction, satisfying the requirement
+that outcome coding never rely on colour alone. Dashed and dotted are accepted
+as being close to one another at small sizes; the findings list remains the
+authoritative statement of what each mark means.
+
+The CSS property used to draw the marks is deliberately not specified here. The
+requirements are that it must not affect layout, must not collide with focus
+indication, and must render at every target size in the card.
+
+---
+
 ## Open questions
 
 Open questions are tracked in the Pending Decisions section of `CLAUDE.md`,
