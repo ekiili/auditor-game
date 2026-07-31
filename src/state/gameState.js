@@ -21,6 +21,7 @@ export const INITIAL_STATE = {
   truth: [],
   guesses: [],
   lastResult: null,
+  lastSnapshot: null,
   history: [],
 }
 
@@ -48,8 +49,10 @@ export function removeGuess(guess) {
   return { type: 'removeGuess', payload: guess }
 }
 
-export function submitAudit() {
-  return { type: 'submitAudit' }
+// Payload convention matches startRound's: a named key inside a payload
+// object, not the bare value that selectTarget and addGuess pass.
+export function submitAudit({ snapshot }) {
+  return { type: 'submitAudit', payload: { snapshot } }
 }
 
 export function nextRound({ violations }) {
@@ -108,19 +111,25 @@ export function gameReducer(state = INITIAL_STATE, action) {
 
     case 'submitAudit': {
       if (state.status !== 'auditing') return state
+      const { snapshot } = action.payload
       const result = scoreRound(state.truth, state.guesses)
       return {
         ...state,
         score: state.score + result.score,
         lastResult: result,
+        // Stored exactly as given, never rebuilt or derived — the same rule
+        // that makes startRound receive its violations rather than roll them.
+        // Snapshots are never appended to history.
+        lastSnapshot: snapshot,
         history: [...state.history, result],
         status: 'reviewing',
       }
     }
 
     case 'nextRound': {
+      // The completed round was the last one, so the round number stays put.
       if (state.round >= state.totalRounds) {
-        return { ...state, status: 'gameOver' }
+        return { ...state, status: 'gameOver', lastSnapshot: null }
       }
       const { violations } = action.payload
       return {
@@ -129,6 +138,7 @@ export function gameReducer(state = INITIAL_STATE, action) {
         truth: violations,
         guesses: [],
         lastResult: null,
+        lastSnapshot: null,
         status: 'auditing',
         auditMode: false,
         selectedTarget: null,
