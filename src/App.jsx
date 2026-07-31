@@ -149,27 +149,49 @@ function App() {
 
   const result = state.lastResult
 
+  // h-screen + overflow-hidden, not min-h-screen: the document must never grow
+  // a scrollbar. Everything that can overflow scrolls inside its own column
+  // instead, so the audited card never leaves the viewport.
   return (
-    <main className="flex min-h-screen flex-col items-center gap-6 bg-gray-50 p-6">
+    <main className="flex h-screen flex-col items-center gap-6 overflow-hidden bg-gray-50 p-6">
       <h1 className="sr-only">Audit Game</h1>
 
       <AuditModeToggle auditMode={state.auditMode} onToggle={() => dispatch(toggleAuditMode())} />
 
-      {/* items-start keeps the canvas column's position independent of how
-          tall the chrome column grows, so inspecting an element never moves it. */}
-      <div className="flex w-full flex-col items-start justify-center gap-6 lg:flex-row">
-        <div
-          ref={canvasRef}
-          className="w-full max-w-sm"
-          onClickCapture={handleCanvasClickCapture}
-          onKeyDownCapture={handleCanvasKeyDownCapture}
-          onFocus={handleCanvasFocus}
-        >
-          <LevelComponent {...currentLevel.applySabotage(state.truth)} />
+      {/* min-h-0 lets the columns shrink below their content height, which is
+          what makes their own overflow-y-auto engage instead of pushing the
+          row taller. lg:items-stretch gives both columns the full row height,
+          so the card's position no longer depends on how tall the chrome
+          column grows — inspecting an element never moves it. */}
+      <div className="flex w-full min-h-0 flex-1 flex-col items-center gap-6 lg:flex-row lg:items-stretch lg:justify-center">
+        {/* Scrolling lives on this column, never on the sizing-only wrapper
+            below: a safety valve for viewports too short for the card, which
+            scrolls rather than clipping it. lg:flex-initial restores the
+            content-width sizing the row layout expects.
+
+            `relative` is load-bearing, not decoration. The sr-only live region
+            inside the stepper is position:absolute; without a positioned
+            ancestor it resolves against the initial containing block, escapes
+            this column's overflow entirely, and grows the document instead.
+            It does not affect the overlay, which is position:fixed — only
+            transform/filter/contain would capture that, and none is used. */}
+        <div className="relative w-full min-h-0 max-w-sm flex-1 overflow-y-auto lg:flex-initial">
+          <div
+            ref={canvasRef}
+            className="w-full"
+            onClickCapture={handleCanvasClickCapture}
+            onKeyDownCapture={handleCanvasKeyDownCapture}
+            onFocus={handleCanvasFocus}
+          >
+            <LevelComponent {...currentLevel.applySabotage(state.truth)} />
+          </div>
         </div>
 
+        {/* `relative` for the same reason as the card column: the visually
+            hidden radios and separators in the target list and rule picker are
+            position:absolute. */}
         {state.auditMode && (
-          <div className="flex w-full max-w-sm flex-col gap-6">
+          <div className="relative flex w-full min-h-0 max-w-sm flex-1 flex-col gap-6 overflow-y-auto lg:flex-initial">
             <TargetList
               auditTargets={currentLevel.auditTargets}
               selectedTarget={state.selectedTarget}
