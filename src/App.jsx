@@ -1,4 +1,4 @@
-import { useEffect, useId, useReducer, useRef } from 'react'
+import { useEffect, useId, useLayoutEffect, useReducer, useRef } from 'react'
 import AuditModeToggle from './components/AuditModeToggle.jsx'
 import GuessLog from './components/GuessLog.jsx'
 import ReadoutPanel from './components/ReadoutPanel.jsx'
@@ -37,6 +37,12 @@ function App() {
   // card's focus state survives to that point. A ref, not state — recording a
   // reading must not re-render the card mid-round.
   const focusReadoutsRef = useRef({})
+  const nextRoundRef = useRef(null)
+  // Submitting unmounts the Submit control, and on the empty-log path the
+  // dialog with it. The element native restoration would return focus to is
+  // gone by then, so focus falls to the body and a keyboard player has to tab
+  // from the top of the page to reach the one control left to them.
+  const focusNextRoundRef = useRef(false)
   const confirmTitleId = useId()
   const LevelComponent = currentLevel.Component
 
@@ -105,7 +111,22 @@ function App() {
     return { elements, focus }
   }
 
-  const submit = () => dispatch(submitAudit({ snapshot: buildSnapshot() }))
+  const submit = () => {
+    focusNextRoundRef.current = true
+    dispatch(submitAudit({ snapshot: buildSnapshot() }))
+  }
+
+  // Runs in the same commit that mounts Next round, so focus never touches the
+  // body in between. Set on both submit paths, so where focus lands does not
+  // depend on how the round was closed. Cancel and Escape never set the flag —
+  // the Submit control survives those, and native restoration handles it.
+  useLayoutEffect(() => {
+    if (state.status !== 'reviewing') return
+    if (!focusNextRoundRef.current) return
+
+    focusNextRoundRef.current = false
+    nextRoundRef.current?.focus()
+  }, [state.status])
 
   const handleSubmit = () => {
     if (state.guesses.length === 0) {
@@ -201,6 +222,7 @@ function App() {
 
                 <button
                   type="button"
+                  ref={nextRoundRef}
                   onClick={handleNextRound}
                   className={`mt-3 ${BUTTON_CLASSES}`}
                 >
