@@ -3,8 +3,14 @@ import { useId } from 'react'
 // The radio itself is sr-only rather than hidden, so it keeps native
 // arrow-key navigation and "n of six" position announcements. The visible
 // label styling therefore has to carry focus and checked state via `peer:`.
+//
+// Hovering a checked option needs its own stacked variant. `peer-hover` is
+// emitted after `peer-checked` at equal specificity, so the pale hover fill
+// would otherwise win and leave the checked white text on it at ~1.07:1.
+// Stacking the two states names the combination directly, rather than
+// out-specifying the hover rule.
 const OPTION_CLASSES =
-  'flex min-h-11 cursor-pointer items-center rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 peer-hover:bg-gray-100 peer-checked:border-indigo-700 peer-checked:bg-indigo-700 peer-checked:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-indigo-700'
+  'flex min-h-11 cursor-pointer items-center rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 peer-hover:bg-gray-100 peer-checked:border-indigo-700 peer-checked:bg-indigo-700 peer-checked:text-white peer-checked:peer-hover:border-indigo-800 peer-checked:peer-hover:bg-indigo-800 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-indigo-700'
 
 function TargetList({ auditTargets, selectedTarget, onSelect }) {
   const groupName = useId()
