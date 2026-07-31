@@ -1,4 +1,4 @@
-> **CLAUDE.md — v11 (2026-07-31)**
+> **CLAUDE.md — v12 (2026-07-31)**
 > This file is maintained by the Planner. Do not edit, append to, or
 > reorganize it. If you find it incomplete, ambiguous, or contradicted by
 > your task prompt, do not resolve the conflict yourself — report the
@@ -297,13 +297,25 @@ Call it against `document.activeElement`. Whether `:focus-visible` matches an un
 * `lastSnapshot` — `null`, or the most recent **Round snapshot**. Set by `submitAudit` from its payload and cleared by `nextRound`. The reducer stores what it is given and derives nothing, exactly as it does with `truth`. Snapshots are never appended to `history`.
 * `history` — array of **Round result** objects, one per completed round.
 
+### Action creators
+
 Action types are bare camelCase strings, identical to their creator names — no namespace prefix, no `SCREAMING_CASE`:
 
 `startRound` · `toggleAuditMode` · `selectTarget` · `selectRule` · `addGuess` · `removeGuess` · `submitAudit` · `nextRound`
 
-`submitAudit` carries a **Round snapshot** in its payload, using the same payload convention `startRound` uses for its violations.
+Payload shapes are recorded here as literal shapes, not by reference to each other. Reading one creator to work out another's convention is how the two were confused once already.
 
-Any new action follows the same convention, and ships its creator and its reducer branch together.
+| Creator | `action.payload` |
+| :--- | :--- |
+| `startRound({ levelId, violations })` | `{ levelId, violations }` |
+| `submitAudit({ snapshot })` | `{ snapshot }` |
+| `nextRound({ violations })` | `{ violations }` |
+| `selectTarget(id)` | `id` |
+| `addGuess(guess)` | `guess` |
+
+**Two payload families exist and neither is being migrated.** A payload that carries more than one value — or one value that may plausibly need a companion later — is an **object with named keys**. A payload that carries a single identifier or a single whole contract shape is that **value, bare**.
+
+A new action declares which family it joins, is added to the table above before it is built, and ships its creator and its reducer branch together. The payload shapes of `toggleAuditMode`, `selectRule` and `removeGuess` are not yet recorded — see **Unrecorded contracts**.
 
 ### Round result
 
@@ -337,6 +349,7 @@ Captured when the player confirms Submit, carried in `submitAudit`'s payload, an
 * Both maps hold an entry for **every** audit target in the level — all six on `ecommerce-checkout` — not only the ones the player flagged. A missed violation needs explaining as much as a false alarm does.
 * Keys are the audit target identifier: the same string that appears in `data-audit-target`, as `target` in a Violation entry, and as `id` in an `auditTargets` entry.
 * `elements` values are read live from the DOM at the moment Submit is confirmed. They are never `null`.
+* **The confirmation dialog is closed before the snapshot is built.** On the empty-log path, `close()` runs first and the snapshot is read with no modal open. This ordering is part of the contract, not an implementation detail: an open modal can change what the document measures — blocked page scrolling reclaims a space-taking scrollbar, the viewport narrows, and any fluid element reports a width the player never saw. Do not reorder these two calls.
 * `focus` values are accumulated **during** the round as the player moves focus, not read at submission. The confirmation dialog takes focus, so nothing about the card's focus state survives to that point.
 * A `focus` value of `null` means exactly one thing: that element never received focus during the round. It never means "focused but unmeasurable." The key is always present — absence is expressed as `null`, as everywhere else in these contracts.
 * Nothing focuses an element in order to fill this in. `readout.js` never calls `.focus()`, and a reading taken from an element the player never reached is not evidence of what they saw.
@@ -371,7 +384,7 @@ The three text fields have distinct jobs and none substitutes for another: `shor
 
 ### Unrecorded contracts
 
-None currently.
+* **The payload shapes of `toggleAuditMode`, `selectRule` and `removeGuess`.** The other five action creators are recorded above. These three have never been reported and are deliberately not guessed at here. A task that needs one of them stops and reports the actual signature so it can be recorded.
 
 **No task may depend on an unrecorded shape.** If a task requires one, stop and report rather than inferring it from surrounding code — an inferred contract that happens to be wrong is the exact failure this section exists to prevent.
 
@@ -418,7 +431,7 @@ All baseline code must strictly adhere to WCAG 2.2 AA:
 * Semantic HTML (`<button>`, `<input>`, `<label>`, correct heading levels — never a clickable `<div>`).
 * Visible, high-contrast focus indicators on every interactive element, via explicit Tailwind `focus-visible:` utilities. Never rely on browser defaults; never emit `outline: none` without a visible replacement.
 * Accessible names for all icon-only buttons.
-* Text contrast at least 4.5:1.
+* Text contrast at least 4.5:1 — **in every interactive state**, including hover. A hover variant that changes text colour must change the background it sits on in the same variant, or it will inherit a colour chosen for a different background.
 * Interactive targets at least 24×24 CSS pixels; 44×44 preferred. Pad the control — don't just resize the glyph.
 * `useId()` for all form element ids. Hardcoded ids break label association when a component renders twice.
 * Complete Tailwind class strings in lookup maps. Tailwind scans source text, so `` `h-${size}` `` generates no CSS.
@@ -445,6 +458,7 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 * **No "Declare Compliant" control.** Submit means "I have logged every violation I found." An empty log is a valid answer, guarded by a confirmation step.
 * **Audit Mode starts off** each round, so the player can use the component normally first.
 * **Audit Mode off means no visible game.** Before Audit Mode is enabled the page looks like an ordinary website — no Inspector, no overlays, no annotations over the card. The target list, overlay, readout panel, rule picker and guess log are absent from the DOM, not hidden.
+* **The game never scrolls the page.** The level component and the chrome column are each constrained to the viewport height, and only the chrome column scrolls — internally, within its own container. The audited component is visible at every moment of the round, because the game's core act is comparing what the element looks like against what the Inspector reports about it, and that comparison cannot survive a scroll. This also keeps the selection overlay's fixed positioning correct with no scroll tracking, since the card never moves relative to the viewport.
 * **Interception is capture-phase**, on a sizing-only wrapper around the level component. A bubble-phase handler runs after the card's own handler has already fired. The wrapper adds no padding, margin, border, or transform — a transform would create a containing block and move the overlay.
 * **The Inspector reports facts, not verdicts.** It shows role, accessible name, dimensions, and focus styles in neutral styling. Empty values are never coloured, iconed, or flagged. The absence is the signal; noticing it is the skill.
 * **Element selection is list-primary.** The player selects from a list of the level's audit targets. Canvas clicking also works, via one delegated handler using `closest('[data-audit-target]')`, so the level component stays unaware the game exists.
@@ -455,6 +469,7 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 * **No live region in the Inspector.** The panel changes on every Tab, and announcing each change would talk over the target list's own announcements.
 * **The rule picker is an always-visible radio group**, never a searchable dropdown. A filter field appears above it once the rule count justifies one; at four rules there is none.
 * **The picker lists rules, not applicable rules.** It is never filtered by the current element, never by `sabotageMap`, never by what could plausibly be wrong. Every rule is offered against every target — twenty-four pairs against a `sabotageMap` of four — and narrowing the list would hand over the answer key.
+* **A confirmed submission places focus on the advance control.** The Submit control unmounts in the same commit that reaches `'reviewing'`, so the element a native `<dialog>` would restore focus to no longer exists and focus would fall to the document body. Focus is moved deliberately instead. This is not achieved by adding `tabIndex` to a container.
 * **The review explains all three outcomes** — violations the player caught, violations they missed, and things they flagged that were fine. Over-reporting is as damaging as under-reporting in real auditing, and a scoring penalty with no explanation teaches caution rather than judgement.
 * **The guess log shows what the player logged and nothing else.** No correctness marking, no counts against Truth, no colour or icon distinguishing a real violation from a decoy. It has no access to Truth and must not acquire any.
 * **The quantity control is a custom stepper**, not a bare native number input. Native spinner arrows fall under 2.5.8's user-agent exception and would create unfair false positives.
@@ -477,6 +492,8 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 * When verifying against a running server, confirm the port it actually bound to. A stale process from an earlier session can hold the default port and serve an old build, producing a pass against the wrong artifact.
 * Browser-level verification uses Playwright, resolved from the local npx cache. It is **not** a project dependency and must not be added to `package.json`.
 * Verify visually and behaviourally, not just by config. State how you verified each claim.
+* **A resume instruction scopes the work, never the verification.** If a task is stopped partway and resumed at a particular section, the gate list still applies whole. Gates are removed only by striking them by name.
+* **`getBoundingClientRect` is viewport-relative.** Any gate comparing an element's position across two states must compare document-relative position, or report `scrollY` alongside and exclude it from the equality check. A page that scrolls between the two readings will otherwise report every element as moved.
 * Report deviations and why, rather than deviating silently.
 * Conventional commit prefixes: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`. These bind your commits. Commits made directly by the repository owner may not carry them, and that is not a discrepancy to report.
 * Never add a dependency, change the build target, or alter the file structure without asking.
