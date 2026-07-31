@@ -8,6 +8,11 @@ const DEFAULTS = {
   labelMode: LABEL_MODES.PROGRAMMATIC,
   focusStyle: FOCUS_STYLES.VISIBLE,
   removeButtonSize: REMOVE_BUTTON_SIZES.DEFAULT,
+  // Whether the card's controls take part in the tab order. Defaults to the
+  // ordinary interactive card; a caller rendering it as a static illustration
+  // passes false. Nothing here is disabled or hidden — the controls keep their
+  // roles, names and states, and only leave the sequential tab order.
+  interactive: true,
 }
 
 const FOCUS_STYLE_CLASSES = {
@@ -29,10 +34,12 @@ const REMOVE_ICON_CLASSES = {
 }
 
 function CheckoutCard(props) {
-  const { imageAlt, labelMode, focusStyle, removeButtonSize } = {
+  const { imageAlt, labelMode, focusStyle, removeButtonSize, interactive } = {
     ...DEFAULTS,
     ...props,
   }
+
+  const tabIndex = interactive ? undefined : -1
 
   return (
     <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -56,6 +63,7 @@ function CheckoutCard(props) {
               type="button"
               aria-label="Remove item"
               data-audit-target="remove-item"
+              tabIndex={tabIndex}
               className={REMOVE_BUTTON_CLASSES[removeButtonSize]}
             >
               <X className={REMOVE_ICON_CLASSES[removeButtonSize]} aria-hidden="true" />
@@ -65,7 +73,7 @@ function CheckoutCard(props) {
           <p className="mt-1 text-sm font-medium text-gray-700">$79.99</p>
 
           <div className="mt-4">
-            <QuantityStepper labelMode={labelMode} />
+            <QuantityStepper labelMode={labelMode} interactive={interactive} />
           </div>
         </div>
       </div>
@@ -73,6 +81,7 @@ function CheckoutCard(props) {
       <button
         type="button"
         data-audit-target="add-to-cart"
+        tabIndex={tabIndex}
         className={`mt-6 w-full rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 ${FOCUS_STYLE_CLASSES[focusStyle]}`}
       >
         Add to Cart

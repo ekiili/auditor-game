@@ -1,1 +1,18 @@
 @import "tailwindcss";
+
+/* Review mark colours.
+ *
+ * The marks are generated as CSS rules rather than as utility classes, because
+ * a mark has to be applied to an element inside the level component and the
+ * level component must stay unaware that the game exists. Tailwind never sees
+ * these colours in source text, and v4 emits only the theme variables its
+ * utilities actually use, so `var(--color-red-700)` would resolve to nothing.
+ * The three values are pinned here instead, straight from the Tailwind palette
+ * the rest of the app draws on.
+ *
+ * Colour is reinforcement only. Line style carries the outcome. */
+:root {
+  --mark-missed: oklch(50.5% 0.213 27.518); /* red-700 */
+  --mark-flagged-in-error: oklch(55.5% 0.163 48.998); /* amber-700 */
+  --mark-caught: oklch(50.8% 0.118 165.612); /* emerald-700 */
+}

@@ -1,11 +1,14 @@
 import { useEffect, useId, useLayoutEffect, useReducer, useRef } from 'react'
 import AuditModeToggle from './components/AuditModeToggle.jsx'
+import FindingsList from './components/FindingsList.jsx'
 import GuessLog from './components/GuessLog.jsx'
 import ReadoutPanel from './components/ReadoutPanel.jsx'
+import ReviewMarks, { MARK_SCOPE_ATTRIBUTE } from './components/ReviewMarks.jsx'
 import RulePicker from './components/RulePicker.jsx'
 import SelectionOverlay from './components/SelectionOverlay.jsx'
 import TargetList from './components/TargetList.jsx'
 import { inspectElement, inspectFocus } from './engine/readout.js'
+import { deriveMarks } from './engine/review.js'
 import { selectViolations } from './engine/saboteurEngine.js'
 import { levels } from './levels/index.js'
 import {
@@ -148,6 +151,20 @@ function App() {
   }
 
   const result = state.lastResult
+  const isReviewing = state.status === 'reviewing'
+
+  // Derived from the Round result and the dimensions the snapshot already
+  // holds. Nothing is measured at review time.
+  const marks = isReviewing ? deriveMarks(result, state.lastSnapshot) : null
+
+  // The card stops being usable once the round is scored, but stays fully in
+  // the accessibility tree: a screen reader user must still be able to work
+  // through it and meet the violations directly. `pointer-events` closes the
+  // pointer route; `interactive={false}` puts the controls out of the tab
+  // order without disabling or hiding them. `inert` would do both at once and
+  // take the component out of the accessibility tree with it.
+  const cardWrapperClasses = isReviewing ? 'w-full pointer-events-none' : 'w-full'
+  const markScope = isReviewing ? { [MARK_SCOPE_ATTRIBUTE]: '' } : {}
 
   // h-screen + overflow-hidden, not min-h-screen: the document must never grow
   // a scrollbar. Everything that can overflow scrolls inside its own column
@@ -178,13 +195,19 @@ function App() {
         <div className="relative w-full min-h-0 max-w-sm flex-1 overflow-y-auto lg:flex-initial">
           <div
             ref={canvasRef}
-            className="w-full"
+            className={cardWrapperClasses}
+            {...markScope}
             onClickCapture={handleCanvasClickCapture}
             onKeyDownCapture={handleCanvasKeyDownCapture}
             onFocus={handleCanvasFocus}
           >
-            <LevelComponent {...currentLevel.applySabotage(state.truth)} />
+            <LevelComponent
+              {...currentLevel.applySabotage(state.truth)}
+              interactive={!isReviewing}
+            />
           </div>
+
+          {isReviewing && <ReviewMarks marks={marks} />}
         </div>
 
         {/* `relative` for the same reason as the card column: the visually
@@ -192,65 +215,71 @@ function App() {
             position:absolute. */}
         {state.auditMode && (
           <div className="relative flex w-full min-h-0 max-w-sm flex-1 flex-col gap-6 overflow-y-auto lg:flex-initial">
-            <TargetList
-              auditTargets={currentLevel.auditTargets}
-              selectedTarget={state.selectedTarget}
-              onSelect={(targetId) => dispatch(selectTarget(targetId))}
-            />
-
-            <ReadoutPanel targetId={state.selectedTarget} containerRef={canvasRef} />
-
-            <RulePicker
-              selectedTarget={state.selectedTarget}
-              selectedRule={state.selectedRule}
-              guesses={state.guesses}
-              onSelectRule={(ruleId) => dispatch(selectRule(ruleId))}
-              onLog={() =>
-                dispatch(addGuess({ ruleId: state.selectedRule, target: state.selectedTarget }))
-              }
-            />
-
-            <GuessLog
-              guesses={state.guesses}
-              auditTargets={currentLevel.auditTargets}
-              onRemove={(guess) => dispatch(removeGuess(guess))}
-            />
-
+            {/* The auditing tools belong to the round, not to the result. Once
+                the round is scored the findings list is the single place a
+                result is read, and the column is its to fill. */}
             {state.status === 'auditing' && (
-              <div>
-                <button type="button" onClick={handleSubmit} className={BUTTON_CLASSES}>
-                  Submit audit
-                </button>
-              </div>
+              <>
+                <TargetList
+                  auditTargets={currentLevel.auditTargets}
+                  selectedTarget={state.selectedTarget}
+                  onSelect={(targetId) => dispatch(selectTarget(targetId))}
+                />
+
+                <ReadoutPanel targetId={state.selectedTarget} containerRef={canvasRef} />
+
+                <RulePicker
+                  selectedTarget={state.selectedTarget}
+                  selectedRule={state.selectedRule}
+                  guesses={state.guesses}
+                  onSelectRule={(ruleId) => dispatch(selectRule(ruleId))}
+                  onLog={() =>
+                    dispatch(addGuess({ ruleId: state.selectedRule, target: state.selectedTarget }))
+                  }
+                />
+
+                <GuessLog
+                  guesses={state.guesses}
+                  auditTargets={currentLevel.auditTargets}
+                  onRemove={(guess) => dispatch(removeGuess(guess))}
+                />
+
+                <div>
+                  <button type="button" onClick={handleSubmit} className={BUTTON_CLASSES}>
+                    Submit audit
+                  </button>
+                </div>
+              </>
             )}
 
-            {/* Deliberately minimal — counts and a button. 5e replaces it. */}
-            {state.status === 'reviewing' && result !== null && (
-              <div className="rounded-lg border border-gray-300 bg-white p-4">
-                <h2 className="text-base font-semibold text-gray-900">
-                  Round {state.round} of {state.totalRounds}
-                </h2>
-                <p className="mt-2 text-sm text-gray-900">Round score: {result.score}</p>
-                <p className="text-sm text-gray-900">
-                  True positives: {result.truePositives.length}
-                </p>
-                <p className="text-sm text-gray-900">
-                  False positives: {result.falsePositives.length}
-                </p>
-                <p className="text-sm text-gray-900">
-                  False negatives: {result.falseNegatives.length}
-                </p>
-                <p className="mt-2 text-sm text-gray-900">Total score: {state.score}</p>
+            {isReviewing && result !== null && (
+              <>
+                <div className="rounded-lg border border-gray-300 bg-white p-4">
+                  <h2 className="text-base font-semibold text-gray-900">
+                    Round {state.round} of {state.totalRounds}
+                  </h2>
+                  <p className="mt-2 text-sm text-gray-900">Round score: {result.score}</p>
+                  <p className="text-sm text-gray-900">Total score: {state.score}</p>
+                </div>
 
-                <button
-                  type="button"
-                  ref={nextRoundRef}
-                  onClick={handleNextRound}
-                  className={`mt-3 ${BUTTON_CLASSES}`}
-                >
-                  Next round
-                </button>
-              </div>
+                <FindingsList
+                  result={result}
+                  auditTargets={currentLevel.auditTargets}
+                  selectedTarget={state.selectedTarget}
+                  onSelect={(targetId) => dispatch(selectTarget(targetId))}
+                />
+
+                <div>
+                  <button
+                    type="button"
+                    ref={nextRoundRef}
+                    onClick={handleNextRound}
+                    className={BUTTON_CLASSES}
+                  >
+                    Next round
+                  </button>
+                </div>
+              </>
             )}
 
             {state.status === 'gameOver' && (

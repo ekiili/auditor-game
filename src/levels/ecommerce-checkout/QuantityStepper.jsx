@@ -14,7 +14,10 @@ function clampQuantity(value) {
   return Math.max(1, value)
 }
 
-function QuantityStepper({ labelMode = LABEL_MODES.PROGRAMMATIC }) {
+// `interactive` mirrors CheckoutCard's prop of the same name: false renders the
+// same controls, with the same roles and names, outside the tab order.
+function QuantityStepper({ labelMode = LABEL_MODES.PROGRAMMATIC, interactive = true }) {
+  const tabIndex = interactive ? undefined : -1
   const [quantity, setQuantity] = useState(1)
   const [announcement, setAnnouncement] = useState('')
   const inputId = useId()
@@ -55,6 +58,7 @@ function QuantityStepper({ labelMode = LABEL_MODES.PROGRAMMATIC }) {
           type="button"
           aria-label="Decrease quantity"
           data-audit-target="quantity-decrease"
+          tabIndex={tabIndex}
           onClick={handleDecrease}
           className={STEPPER_BUTTON_CLASSES}
         >
@@ -71,6 +75,7 @@ function QuantityStepper({ labelMode = LABEL_MODES.PROGRAMMATIC }) {
           value={quantity}
           onChange={handleChange}
           data-audit-target="quantity-input"
+          tabIndex={tabIndex}
           className={INPUT_CLASSES}
         />
 
@@ -78,6 +83,7 @@ function QuantityStepper({ labelMode = LABEL_MODES.PROGRAMMATIC }) {
           type="button"
           aria-label="Increase quantity"
           data-audit-target="quantity-increase"
+          tabIndex={tabIndex}
           onClick={handleIncrease}
           className={STEPPER_BUTTON_CLASSES}
         >
