@@ -1,4 +1,4 @@
-> **CLAUDE.md — v12 (2026-07-31)**
+> **CLAUDE.md — v13 (2026-07-31)**
 > This file is maintained by the Planner. Do not edit, append to, or
 > reorganize it. If you find it incomplete, ambiguous, or contradicted by
 > your task prompt, do not resolve the conflict yourself — report the
@@ -41,7 +41,9 @@ If sabotage decisions leak into a component, a future editing session will "help
 
 ```
 Layer 1 — TRUTH         src/engine/saboteurEngine.js
-                        Rolls the dice. Owns the 80/20 compliant/broken split.
+                        Rolls the dice. Owns the compliant/broken split:
+                        COMPLIANT_CHANCE = 0.2, so 20% of rounds are clean
+                        and 80% carry at least one violation.
                         Outputs violations drawn from a level's sabotageMap.
                         Knows nothing about JSX or any specific level.
 
@@ -310,12 +312,15 @@ Payload shapes are recorded here as literal shapes, not by reference to each oth
 | `startRound({ levelId, violations })` | `{ levelId, violations }` |
 | `submitAudit({ snapshot })` | `{ snapshot }` |
 | `nextRound({ violations })` | `{ violations }` |
-| `selectTarget(id)` | `id` |
-| `addGuess(guess)` | `guess` |
+| `selectTarget(targetId)` | `targetId` — an `auditTargets` entry's `id`, or `null` |
+| `selectRule(ruleId)` | `ruleId` — a `RULE_IDS` value, or `null` |
+| `addGuess(guess)` | `guess` — a whole **Guess entry** |
+| `removeGuess(guess)` | `guess` — a whole **Guess entry** |
+| `toggleAuditMode()` | none — the action is `{ type: 'toggleAuditMode' }` and carries no `payload` key at all |
 
-**Two payload families exist and neither is being migrated.** A payload that carries more than one value — or one value that may plausibly need a companion later — is an **object with named keys**. A payload that carries a single identifier or a single whole contract shape is that **value, bare**.
+**Three payload forms exist and none is being migrated.** A payload carrying more than one value — or one value that may plausibly need a companion later — is an **object with named keys**. A payload carrying a single identifier or a single whole contract shape is that **value, bare**. An action that needs no data omits the `payload` key entirely rather than setting it to `null` or `undefined`.
 
-A new action declares which family it joins, is added to the table above before it is built, and ships its creator and its reducer branch together. The payload shapes of `toggleAuditMode`, `selectRule` and `removeGuess` are not yet recorded — see **Unrecorded contracts**.
+A new action declares which form it takes, is added to the table above before it is built, and ships its creator and its reducer branch together.
 
 ### Round result
 
@@ -352,6 +357,7 @@ Captured when the player confirms Submit, carried in `submitAudit`'s payload, an
 * **The confirmation dialog is closed before the snapshot is built.** On the empty-log path, `close()` runs first and the snapshot is read with no modal open. This ordering is part of the contract, not an implementation detail: an open modal can change what the document measures — blocked page scrolling reclaims a space-taking scrollbar, the viewport narrows, and any fluid element reports a width the player never saw. Do not reorder these two calls.
 * `focus` values are accumulated **during** the round as the player moves focus, not read at submission. The confirmation dialog takes focus, so nothing about the card's focus state survives to that point.
 * A `focus` value of `null` means exactly one thing: that element never received focus during the round. It never means "focused but unmeasurable." The key is always present — absence is expressed as `null`, as everywhere else in these contracts.
+* **`null` does not distinguish "not focused" from "not focusable."** `product-image` is an `<img>` and never enters the tab order, so its entry is `null` in every round that will ever be played. Anything reading `focus` must establish that an element is focusable at all before treating `null` as something the player failed to do. Telling a player they neglected to keyboard-test an image would teach them something false.
 * Nothing focuses an element in order to fill this in. `readout.js` never calls `.focus()`, and a reading taken from an element the player never reached is not evidence of what they saw.
 
 The snapshot exists because a false alarm is explained by the measurement the player misjudged — "it measured 44 by 44" — and that measurement is gone once the next round renders. A missed violation is explained from the rule's static `description` and needs no snapshot.
@@ -384,7 +390,7 @@ The three text fields have distinct jobs and none substitutes for another: `shor
 
 ### Unrecorded contracts
 
-* **The payload shapes of `toggleAuditMode`, `selectRule` and `removeGuess`.** The other five action creators are recorded above. These three have never been reported and are deliberately not guessed at here. A task that needs one of them stops and reports the actual signature so it can be recorded.
+None currently.
 
 **No task may depend on an unrecorded shape.** If a task requires one, stop and report rather than inferring it from surrounding code — an inferred contract that happens to be wrong is the exact failure this section exists to prevent.
 
@@ -431,7 +437,7 @@ All baseline code must strictly adhere to WCAG 2.2 AA:
 * Semantic HTML (`<button>`, `<input>`, `<label>`, correct heading levels — never a clickable `<div>`).
 * Visible, high-contrast focus indicators on every interactive element, via explicit Tailwind `focus-visible:` utilities. Never rely on browser defaults; never emit `outline: none` without a visible replacement.
 * Accessible names for all icon-only buttons.
-* Text contrast at least 4.5:1 — **in every interactive state**, including hover. A hover variant that changes text colour must change the background it sits on in the same variant, or it will inherit a colour chosen for a different background.
+* Text contrast at least 4.5:1 — **in every interactive state and every combination of them**: rest, hover, selected, selected-and-hovered, and focus-visible. Foreground and background are set together or not at all, and this fails in both directions: a hover background arriving underneath a selected state's white text is the same bug as a hover text colour arriving over a resting background. Where two state variants carry equal specificity, source order decides which wins, so a combined state needs a variant of its own rather than relying on either half. Fix these by expressing the combination, never with `!important` or an invented specificity bump.
 * Interactive targets at least 24×24 CSS pixels; 44×44 preferred. Pad the control — don't just resize the glyph.
 * `useId()` for all form element ids. Hardcoded ids break label association when a component renders twice.
 * Complete Tailwind class strings in lookup maps. Tailwind scans source text, so `` `h-${size}` `` generates no CSS.
@@ -458,7 +464,9 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 * **No "Declare Compliant" control.** Submit means "I have logged every violation I found." An empty log is a valid answer, guarded by a confirmation step.
 * **Audit Mode starts off** each round, so the player can use the component normally first.
 * **Audit Mode off means no visible game.** Before Audit Mode is enabled the page looks like an ordinary website — no Inspector, no overlays, no annotations over the card. The target list, overlay, readout panel, rule picker and guess log are absent from the DOM, not hidden.
-* **The game never scrolls the page.** The level component and the chrome column are each constrained to the viewport height, and only the chrome column scrolls — internally, within its own container. The audited component is visible at every moment of the round, because the game's core act is comparing what the element looks like against what the Inspector reports about it, and that comparison cannot survive a scroll. This also keeps the selection overlay's fixed positioning correct with no scroll tracking, since the card never moves relative to the viewport.
+* **The game never scrolls the page.** Both columns are constrained to the viewport height and scroll internally, within their own containers. The audited component is visible at every moment of the round, because the game's core act is comparing what the element looks like against what the Inspector reports about it, and that comparison cannot survive a scroll. Two consequences are load-bearing and must survive any later refactor:
+  * **Each column carries `position: relative`.** The `sr-only` helpers are `position: absolute` with no offsets, so without a positioned ancestor they resolve against the initial containing block, escape their column's `overflow`, and grow the document past the viewport — two 1px elements are enough to defeat the whole decision. `position: relative` is safe here: it does not create a containing block for `position: fixed` and so cannot capture the selection overlay, where `transform`, `filter`, `perspective` and `contain` would.
+  * **The selection overlay's capture-phase scroll listeners stay.** The card still moves when its own column scrolls on a short viewport, so the tracking is doing real work and is not redundant.
 * **Interception is capture-phase**, on a sizing-only wrapper around the level component. A bubble-phase handler runs after the card's own handler has already fired. The wrapper adds no padding, margin, border, or transform — a transform would create a containing block and move the overlay.
 * **The Inspector reports facts, not verdicts.** It shows role, accessible name, dimensions, and focus styles in neutral styling. Empty values are never coloured, iconed, or flagged. The absence is the signal; noticing it is the skill.
 * **Element selection is list-primary.** The player selects from a list of the level's audit targets. Canvas clicking also works, via one delegated handler using `closest('[data-audit-target]')`, so the level component stays unaware the game exists.
