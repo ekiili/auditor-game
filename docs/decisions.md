@@ -506,6 +506,97 @@ indication, and must render at every target size in the card.
 
 ---
 
+## 30. Review marks describe elements, not findings
+
+**Date:** 2026-07-31 · **Status:** Accepted
+
+A finding is an element-and-rule pair, but a mark is drawn on an element. A mark
+therefore reports the state of the element as a whole, not of any one finding
+against it.
+
+Where an element carries more than one finding, precedence applies: an
+unresolved violation outranks everything else, and a false alarm marks the card
+only when the element was otherwise clean.
+
+The consequence is that an element flagged under the wrong rule reads as a
+missed violation on the card. This is the common case rather than an edge case —
+recognising that something is wrong while naming the wrong criterion is the
+result the game most needs to teach. Both findings remain in the list, where
+there is room to explain the distinction.
+
+Decision 30's style assignments are unchanged; this decision fixes what they are
+assigned to.
+
+Empty sections are hidden rather than shown as empty states. A round with
+nothing missed and nothing flagged in error therefore fills the column with the
+caught panel alone, under a "Perfect!" headline. This is the same screen
+emphasised, not a separate one.
+
+---
+
+## 31. Findings are grouped into three coloured sections
+
+**Date:** 2026-07-31 · **Status:** Accepted
+
+The findings list presents three sections in a fixed order: missed violations,
+things flagged in error, then violations caught. Each is a distinct
+colour-coded panel.
+
+The grouping maps one-to-one onto the three arrays of the Round result, so the
+rendering is direct and the data contract is legible in the interface. The
+section heading carries the meaning of its category, which keeps individual rows
+free of repeated status labelling and means colour is reinforcement rather than
+the sole carrier of meaning.
+
+The order places the instructive content first and the player's successes last,
+so the review teaches on the way in and ends on what went right.
+
+Rejected: a flat list with a status on each row, which would have rendered two
+different entry shapes as uniform rows and mimicked the in-round log while
+containing entries the player never made.
+
+---
+
+## 32. What a review entry tells the player
+
+**Date:** 2026-07-31 · **Status:** Accepted
+
+Every finding carries a short plain-language summary of its rule, regardless of
+outcome. This is the teaching layer and it reads the same whether the player
+caught the violation, missed it, or flagged something that was fine.
+
+Findings flagged in error carry one thing more: the measurement showing the
+element passed. The rule alone explains the criterion; the measurement explains
+this particular verdict, and it is only available because the game records what
+the player saw at the moment they submitted.
+
+Two cases are handled separately and must not be collapsed into the general
+one. Where a player flagged a focus failure on an element they never focused,
+the review says so plainly — auditing without testing is itself the lesson.
+Where an element can never receive focus at all, the review states that the
+criterion does not apply to it. Wording that case as a failure to test would
+teach the player something false, which this project cannot afford.
+
+---
+
+## 33. The card is inert during review but remains readable
+
+**Date:** 2026-07-31 · **Status:** Accepted
+
+During the review the card responds to nothing. It is not clickable and nothing
+on it can be reached by keyboard. All interaction belongs to the findings list,
+which is the single authoritative place to read a result.
+
+Inert does not mean hidden. The card stays fully available to assistive
+technology, so a player using a screen reader can still work through the
+component and encounter the violations directly rather than being left with a
+list of findings about something they can no longer examine.
+
+A consequence worth recording: with nothing focusable on the card, the review
+marks no longer compete with focus indication for the same styling.
+
+---
+
 ## Open questions
 
 Open questions are tracked in the Pending Decisions section of `CLAUDE.md`,
