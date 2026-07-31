@@ -128,8 +128,16 @@ export function gameReducer(state = INITIAL_STATE, action) {
 
     case 'nextRound': {
       // The completed round was the last one, so the round number stays put.
+      // The selection still clears: nextRound is one of the four clearing
+      // paths for both fields, on every branch it takes.
       if (state.round >= state.totalRounds) {
-        return { ...state, status: 'gameOver', lastSnapshot: null }
+        return {
+          ...state,
+          status: 'gameOver',
+          lastSnapshot: null,
+          selectedTarget: null,
+          selectedRule: null,
+        }
       }
       const { violations } = action.payload
       return {
