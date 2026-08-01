@@ -123,13 +123,20 @@ export function gameReducer(state = INITIAL_STATE, action) {
         lastSnapshot: snapshot,
         history: [...state.history, result],
         status: 'reviewing',
+        // The review's own selection means "the finding I am reading", and it
+        // reaches the card as an intensified mark. A selection carried over
+        // from the audit would open the review emphasising an element the
+        // player never chose there, so scoring the round ends the selection
+        // that belonged to auditing it.
+        selectedTarget: null,
+        selectedRule: null,
       }
     }
 
     case 'nextRound': {
       // The completed round was the last one, so the round number stays put.
-      // The selection still clears: nextRound is one of the four clearing
-      // paths for both fields, on every branch it takes.
+      // The selection still clears: nextRound is one of the clearing paths for
+      // both fields, on every branch it takes.
       if (state.round >= state.totalRounds) {
         return {
           ...state,
