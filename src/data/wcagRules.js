@@ -18,7 +18,7 @@ export const WCAG_RULES = Object.freeze([
     name: 'Non-text Content',
     shortLabel: 'Images need a text alternative',
     description:
-      'An image has no text alternative, so a screen reader announces the raw filename instead of what the image shows.',
+      'Without a text alternative, a screen reader announces the raw filename instead of what the image shows.',
     principle: PRINCIPLES.PERCEIVABLE,
     keywords: Object.freeze([
       'image',
@@ -35,7 +35,7 @@ export const WCAG_RULES = Object.freeze([
     name: 'Labels or Instructions',
     shortLabel: 'Form fields need a label',
     description:
-      'A form input has no programmatic label, so a screen reader announces it as a blank, unnamed field.',
+      'Without a programmatic label, a screen reader announces the field as blank and unnamed.',
     principle: PRINCIPLES.UNDERSTANDABLE,
     keywords: Object.freeze([
       'label',
@@ -51,7 +51,7 @@ export const WCAG_RULES = Object.freeze([
     name: 'Focus Visible',
     shortLabel: 'Keyboard focus must be visible',
     description:
-      'An interactive element has no visible focus indicator, so a keyboard user tabbing through the page loses track of where they are.',
+      'Without a visible focus indicator, a keyboard user moving through the page loses track of where they are.',
     principle: PRINCIPLES.OPERABLE,
     keywords: Object.freeze([
       'focus',
@@ -67,7 +67,7 @@ export const WCAG_RULES = Object.freeze([
     name: 'Target Size (Minimum)',
     shortLabel: 'Controls must be big enough to tap',
     description:
-      'An interactive control has a clickable area smaller than 24 by 24 CSS pixels, so a user with limited precision struggles to activate it.',
+      'A clickable area smaller than 24 by 24 CSS pixels is hard to hit for a user with limited precision.',
     principle: PRINCIPLES.OPERABLE,
     keywords: Object.freeze([
       'target size',

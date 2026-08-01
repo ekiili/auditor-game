@@ -287,6 +287,7 @@ function App() {
                 <FindingsList
                   result={result}
                   auditTargets={currentLevel.auditTargets}
+                  snapshot={state.lastSnapshot}
                   selectedTarget={state.selectedTarget}
                   onSelect={(targetId) => dispatch(selectTarget(targetId))}
                 />
