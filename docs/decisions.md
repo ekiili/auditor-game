@@ -487,13 +487,14 @@ outcome:
 
 - Missed violation — dashed
 - False alarm — dotted
-- Caught violation — double, falling back to solid when the element's smaller
-  dimension is under 24px
+- Caught violation — solid at double weight, falling back to normal weight when
+  the element's smaller dimension is under 24px
 
-The fallback exists because a double line stops reading as two lines on small
-targets. The threshold is evaluated against the width and height already
-recorded in the Round snapshot at submit, so no measurement is added at review
-time.
+The caught mark is a single line drawn heavier than the others, not a two-stroke
+double line. The fallback exists because a heavy line overwhelms a small target
+rather than reading as emphasis. The threshold is evaluated against the width
+and height already recorded in the Round snapshot at submit, so no measurement
+is added at review time.
 
 Line style, not colour, is the primary distinction, satisfying the requirement
 that outcome coding never rely on colour alone. Dashed and dotted are accepted
