@@ -597,6 +597,31 @@ marks no longer compete with focus indication for the same styling.
 
 ---
 
+## 34. The game is playable with a mouse alone
+
+**Date:** 2026-08-01 · **Status:** Accepted
+
+Every check the player is asked to make must be reachable without the keyboard.
+This is a point-and-click game, and a player who never presses Tab must still be
+able to complete a round and evaluate all four criteria.
+
+Focus visibility is the criterion this affects. Rather than requiring the player
+to tab to a control, the Inspector offers a control that moves real keyboard
+focus onto the current element. The focus is genuine, so the reading stays
+honest — what changes is who initiates the test, not whether it happens.
+
+Rejected: leaving the check keyboard-only. Nobody using a mouse will reach for
+Tab to evaluate one criterion out of an eventual fifty, so the check would go
+unused.
+
+The obvious implementation does not work: moving focus by script suppresses the
+state the browser uses to decide whether to show an indicator, so a compliant
+element would report as failing. Verified across three browser engines before
+being accepted. Real Safari on macOS and iOS remains untested and that gap is
+accepted.
+
+---
+
 ## Open questions
 
 Open questions are tracked in the Pending Decisions section of `CLAUDE.md`,
