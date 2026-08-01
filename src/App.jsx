@@ -28,6 +28,12 @@ const [currentLevel] = levels
 
 const ACTIVATION_KEYS = ['Enter', ' ']
 
+// Keyed by `status`; an absent key means the control is available.
+const TOGGLE_UNAVAILABLE_REASONS = {
+  reviewing: 'Not available while you review this round.',
+  gameOver: 'Not available once the session is over.',
+}
+
 const BUTTON_CLASSES =
   'inline-flex min-h-11 items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700'
 
@@ -151,7 +157,19 @@ function App() {
   }
 
   const result = state.lastResult
+  const isAuditing = state.status === 'auditing'
   const isReviewing = state.status === 'reviewing'
+
+  // Audit Mode belongs to the act of auditing. Once the round is scored there
+  // is nothing left to switch off, and switching it off used to unmount the
+  // column holding the only route forward. The control stays present and says
+  // why it is unavailable rather than disappearing or quietly ignoring clicks.
+  const toggleUnavailableReason = TOGGLE_UNAVAILABLE_REASONS[state.status] ?? null
+
+  // Only the auditing tools are Audit Mode's to hide. The review and the
+  // end-of-session panel answer to `status` alone, so no state of this toggle
+  // can strand the player even if it later gains a way to change during them.
+  const showChromeColumn = isAuditing ? state.auditMode : true
 
   // Derived from the Round result and the dimensions the snapshot already
   // holds. Nothing is measured at review time.
@@ -173,7 +191,11 @@ function App() {
     <main className="flex h-screen flex-col items-center gap-6 overflow-hidden bg-gray-50 p-6">
       <h1 className="sr-only">Audit Game</h1>
 
-      <AuditModeToggle auditMode={state.auditMode} onToggle={() => dispatch(toggleAuditMode())} />
+      <AuditModeToggle
+        auditMode={state.auditMode}
+        onToggle={() => dispatch(toggleAuditMode())}
+        unavailableReason={toggleUnavailableReason}
+      />
 
       {/* min-h-0 lets the columns shrink below their content height, which is
           what makes their own overflow-y-auto engage instead of pushing the
@@ -213,7 +235,7 @@ function App() {
         {/* `relative` for the same reason as the card column: the visually
             hidden radios and separators in the target list and rule picker are
             position:absolute. */}
-        {state.auditMode && (
+        {showChromeColumn && (
           <div className="relative flex w-full min-h-0 max-w-sm flex-1 flex-col gap-6 overflow-y-auto lg:flex-initial">
             {/* The auditing tools belong to the round, not to the result. Once
                 the round is scored the findings list is the single place a
