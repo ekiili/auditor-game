@@ -1,4 +1,5 @@
-import { useEffect, useId, useLayoutEffect, useReducer, useRef } from 'react'
+import { useEffect, useId, useLayoutEffect, useReducer, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import AuditModeToggle from './components/AuditModeToggle.jsx'
 import FindingsList from './components/FindingsList.jsx'
 import GuessLog from './components/GuessLog.jsx'
@@ -40,20 +41,31 @@ const BUTTON_CLASSES =
 function App() {
   const [state, dispatch] = useReducer(gameReducer, INITIAL_STATE)
   const canvasRef = useRef(null)
-  const dialogRef = useRef(null)
   // Focus readings are accumulated as the player moves around, not read at
-  // submission: the confirmation dialog takes focus, so nothing about the
+  // submission: the confirmation may itself take focus, so nothing about the
   // card's focus state survives to that point. A ref, not state — recording a
   // reading must not re-render the card mid-round.
   const focusReadoutsRef = useRef({})
   const nextRoundRef = useRef(null)
-  // Submitting unmounts the Submit control, and on the empty-log path the
-  // dialog with it. The element native restoration would return focus to is
-  // gone by then, so focus falls to the body and a keyboard player has to tab
-  // from the top of the page to reach the one control left to them.
+  const submitRef = useRef(null)
+  const cancelConfirmRef = useRef(null)
+  // Submitting unmounts the Submit control, and the confirmation with it. The
+  // element focus would otherwise return to is gone by then, so focus falls to
+  // the body and a keyboard player has to tab from the top of the page to
+  // reach the one control left to them.
   const focusNextRoundRef = useRef(false)
   const confirmTitleId = useId()
+  const confirmDescriptionId = useId()
   const LevelComponent = currentLevel.Component
+
+  // Transient UI state, deliberately not in the reducer: the confirmation is a
+  // property of this screen, not of the round.
+  const [confirmOpen, setConfirmOpen] = useState(false)
+
+  // Guarding the render rather than resetting the flag from four places. The
+  // question is "submit with nothing logged?", so it stops applying the moment
+  // anything is logged — the panel cannot outlive its own premise.
+  const showConfirmPanel = confirmOpen && state.guesses.length === 0
 
   useEffect(() => {
     dispatch(
@@ -137,22 +149,56 @@ function App() {
     nextRoundRef.current?.focus()
   }, [state.status])
 
+  // The panel is not a dialog, so the browser supplies none of what a dialog
+  // did. Moving focus in, dismissing on Escape, and returning focus to the
+  // Submit control are each built here on purpose.
+  useLayoutEffect(() => {
+    if (!showConfirmPanel) return
+    cancelConfirmRef.current?.focus()
+  }, [showConfirmPanel])
+
+  const closeConfirm = () => {
+    setConfirmOpen(false)
+    submitRef.current?.focus()
+  }
+
+  // Document-level, not panel-level: the panel blocks nothing, so the player
+  // may well be somewhere else on the page when they reach for Escape.
+  useEffect(() => {
+    if (!showConfirmPanel) return undefined
+
+    const handleEscape = (event) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      closeConfirm()
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [showConfirmPanel])
+
   const handleSubmit = () => {
     if (state.guesses.length === 0) {
-      dialogRef.current.showModal()
+      setConfirmOpen(true)
       return
     }
 
     submit()
   }
 
+  // flushSync so the panel is out of the document before the snapshot is read,
+  // not merely scheduled for removal. The contract is that nothing is
+  // overlaying or obstructing the page at the moment of the reading, and it is
+  // about the page being unobstructed rather than about any one mechanism —
+  // so the ordering is made real here rather than argued about.
   const handleConfirmSubmit = () => {
-    dialogRef.current.close()
+    flushSync(() => setConfirmOpen(false))
     submit()
   }
 
   const handleNextRound = () => {
     focusReadoutsRef.current = {}
+    setConfirmOpen(false)
     dispatch(nextRound({ violations: selectViolations(currentLevel) }))
   }
 
@@ -229,7 +275,7 @@ function App() {
             />
           </div>
 
-          {isReviewing && <ReviewMarks marks={marks} />}
+          {isReviewing && <ReviewMarks marks={marks} selectedTarget={state.selectedTarget} />}
         </div>
 
         {/* `relative` for the same reason as the card column: the visually
@@ -267,10 +313,59 @@ function App() {
                 />
 
                 <div>
-                  <button type="button" onClick={handleSubmit} className={BUTTON_CLASSES}>
+                  <button
+                    type="button"
+                    ref={submitRef}
+                    onClick={handleSubmit}
+                    className={BUTTON_CLASSES}
+                  >
                     Submit audit
                   </button>
                 </div>
+
+                {/* Inline, in the chrome column, directly under the control it
+                    belongs to. It takes layout space where the modal did not,
+                    so it is placed in the column that already has a fixed
+                    height and its own scroll — the card is in the other column
+                    and cannot be moved by anything that happens here. */}
+                {showConfirmPanel && (
+                  <section
+                    aria-labelledby={confirmTitleId}
+                    className="rounded-lg border-2 border-indigo-700 bg-white p-4"
+                  >
+                    <h2 id={confirmTitleId} className="text-base font-semibold text-gray-900">
+                      Confirm submission
+                    </h2>
+
+                    <p id={confirmDescriptionId} className="mt-2 text-sm text-gray-900">
+                      Submit with no violations logged? You&apos;re declaring this component
+                      compliant.
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        ref={cancelConfirmRef}
+                        onClick={closeConfirm}
+                        aria-describedby={confirmDescriptionId}
+                        className={BUTTON_CLASSES}
+                      >
+                        Cancel
+                      </button>
+
+                      {/* Not "Submit audit" a second time: two buttons with one
+                          accessible name is a puzzle for anyone listing them. */}
+                      <button
+                        type="button"
+                        onClick={handleConfirmSubmit}
+                        aria-describedby={confirmDescriptionId}
+                        className={BUTTON_CLASSES}
+                      >
+                        Submit with nothing logged
+                      </button>
+                    </div>
+                  </section>
+                )}
               </>
             )}
 
@@ -315,47 +410,14 @@ function App() {
         )}
       </div>
 
-      {state.auditMode && (
+      {/* Auditing only. During review the element already carries a mark
+          stating its outcome, and a second ring at a different offset and
+          colour would read as an accident rather than as emphasis — so
+          selecting a finding thickens that mark instead. */}
+      {state.auditMode && isAuditing && (
         <SelectionOverlay targetId={state.selectedTarget} containerRef={canvasRef} />
       )}
 
-      {/* Mounted under the same condition as the Submit control it belongs to.
-          A closed dialog is display:none, but leaving it mounted would still
-          put a second "Submit audit" button in the DOM with the game closed.
-
-          Native dialog + showModal(): focus trapping, Escape, and an inert
-          background come from the platform. Hand-rolled modals get exactly
-          those three things wrong. */}
-      {state.auditMode && state.status === 'auditing' && (
-      <dialog
-        ref={dialogRef}
-        aria-labelledby={confirmTitleId}
-        className="rounded-lg border border-gray-300 bg-white p-6 text-gray-900 backdrop:bg-gray-900/50"
-      >
-        <h2 id={confirmTitleId} className="text-base font-semibold">
-          Confirm submission
-        </h2>
-
-        <p className="mt-2 max-w-sm text-sm">
-          Submit with no violations logged? You&apos;re declaring this component compliant.
-        </p>
-
-        <div className="mt-4 flex flex-wrap gap-3">
-          <button
-            type="button"
-            autoFocus
-            onClick={() => dialogRef.current.close()}
-            className={BUTTON_CLASSES}
-          >
-            Cancel
-          </button>
-
-          <button type="button" onClick={handleConfirmSubmit} className={BUTTON_CLASSES}>
-            Submit audit
-          </button>
-        </div>
-      </dialog>
-      )}
     </main>
   )
 }

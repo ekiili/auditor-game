@@ -22,13 +22,21 @@ const MARK_COLORS = {
 // at all. One width for every outcome keeps weight from becoming a fourth,
 // unannounced signal.
 const MARK_WIDTH = '3px'
+
+// Selecting a finding thickens the ring the element already carries rather
+// than drawing a second one beside it. Weight is the only thing that changes:
+// the colour still states the outcome, the line style still distinguishes
+// missed from flagged in error from caught, and a player who cannot separate
+// the three colours still sees which element is selected.
+const SELECTED_MARK_WIDTH = '5px'
 const MARK_OFFSET = '2px'
 
-function ReviewMarks({ marks }) {
+function ReviewMarks({ marks, selectedTarget }) {
   const rules = Object.entries(marks).map(
     ([target, { outcome, lineStyle }]) =>
       `[${MARK_SCOPE_ATTRIBUTE}] [data-audit-target="${target}"]{` +
-      `outline:${MARK_WIDTH} ${lineStyle} ${MARK_COLORS[outcome]};` +
+      `outline:${target === selectedTarget ? SELECTED_MARK_WIDTH : MARK_WIDTH} ` +
+      `${lineStyle} ${MARK_COLORS[outcome]};` +
       `outline-offset:${MARK_OFFSET}}`,
   )
 

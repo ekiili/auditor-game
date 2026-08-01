@@ -1,5 +1,5 @@
 import { useId, useLayoutEffect, useState } from 'react'
-import { inspectElement, inspectFocus } from '../engine/readout.js'
+import { inspectElement, inspectFocus, isKeyboardFocusable } from '../engine/readout.js'
 
 // Every value renders with the same classes. An absent value differs from a
 // present one only in the word it prints — no colour, weight, icon, border or
@@ -11,6 +11,19 @@ const PROSE_CLASSES = 'text-sm text-gray-600'
 const HEADING_CLASSES = 'text-sm font-semibold text-gray-900'
 
 const NONE = '(none)'
+
+// Same shape as the rule picker's log button and the Audit Mode toggle:
+// aria-disabled rather than the native attribute, so the sentence explaining
+// why it is unavailable stays reachable at the moment the player wants it.
+const FOCUS_BUTTON_CLASSES =
+  'inline-flex min-h-11 items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700 aria-disabled:cursor-not-allowed aria-disabled:border-gray-200 aria-disabled:text-gray-700 aria-disabled:hover:bg-white'
+
+// Stated rather than hidden: a missing control teaches nothing, while a stated
+// reason teaches that not everything on a page is meant to be focusable.
+const notFocusableReason = (tagName) => {
+  const article = 'aeiou'.includes(tagName[0]) ? 'An' : 'A'
+  return `${article} <${tagName}> never takes keyboard focus, so there is no focus indicator to show. Not everything on a page is meant to be focusable.`
+}
 
 function formatValue(value) {
   return value === null ? NONE : String(value)
@@ -37,8 +50,27 @@ function Row({ label, value }) {
 
 function ReadoutPanel({ targetId, containerRef }) {
   const titleId = useId()
+  const reasonId = useId()
   const [readout, setReadout] = useState(null)
   const [focusReadout, setFocusReadout] = useState(null)
+
+  const canTakeFocus = isKeyboardFocusable(readout)
+
+  // The player performing the test, not the game harvesting a reading. The
+  // focus that moves is real, so what the panel then reports is honest.
+  //
+  // `focusVisible: true` is load-bearing and must not be dropped. Verified on
+  // Chromium 151, WebKit 26.5 and Firefox 153: a plain focus() call inside a
+  // click handler leaves :focus-visible unmatched on every one of them, so a
+  // compliant element would render no indicator and be reported as failing.
+  // Deferring the call out of the click dispatch does not help either — it was
+  // measured and it fails the same way.
+  const moveFocusHere = () => {
+    if (!canTakeFocus) return
+
+    const element = containerRef.current?.querySelector(`[data-audit-target="${targetId}"]`)
+    element?.focus({ focusVisible: true })
+  }
 
   useLayoutEffect(() => {
     if (!targetId) {
@@ -93,9 +125,29 @@ function ReadoutPanel({ targetId, containerRef }) {
 
           <h3 className={`mt-4 ${HEADING_CLASSES}`}>Focus</h3>
 
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={moveFocusHere}
+              aria-disabled={canTakeFocus ? undefined : true}
+              aria-describedby={canTakeFocus ? undefined : reasonId}
+              className={FOCUS_BUTTON_CLASSES}
+            >
+              Move focus here
+            </button>
+
+            {!canTakeFocus && (
+              <p id={reasonId} className={`max-w-full ${PROSE_CLASSES}`}>
+                {notFocusableReason(readout.tagName)}
+              </p>
+            )}
+          </div>
+
           {focusReadout === null ? (
             <p className={`mt-2 ${PROSE_CLASSES}`}>
-              Not focused yet — press Tab to reach this element.
+              {canTakeFocus
+                ? 'Not focused yet — move focus here, or press Tab to reach this element.'
+                : 'Nothing to report: this element cannot hold focus.'}
             </p>
           ) : (
             <dl className="mt-2 flex flex-col gap-2">

@@ -71,6 +71,24 @@ export function inspectElement(element) {
   }
 }
 
+// Elements that take keyboard focus with no author intervention. `a` earns it
+// only with an href, which the readout reports as an implicit role of `link`.
+const NATIVELY_FOCUSABLE_TAGS = ['button', 'input', 'select', 'textarea']
+
+/**
+ * Answered from a Readout object, never from a focus reading. A focus reading
+ * of `null` is identical whether the element was never focused or could never
+ * be focused at all, so it cannot tell those apart — and treating an image as
+ * something the player neglected to test would teach them something false.
+ *
+ * This reads a shape; it touches no DOM and moves no focus.
+ */
+export function isKeyboardFocusable(readout) {
+  if (!readout) return false
+  if (readout.tagName === 'a') return readout.role === 'link'
+  return NATIVELY_FOCUSABLE_TAGS.includes(readout.tagName)
+}
+
 export function inspectFocus(element) {
   const style = getComputedStyle(element)
   const outlineStyle = style.outlineStyle

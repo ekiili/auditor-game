@@ -11,6 +11,7 @@
 // review happens to be rendering instead.
 
 import { RULE_IDS } from '../data/wcagRules.js'
+import { isKeyboardFocusable } from './readout.js'
 
 export const OUTCOMES = Object.freeze({
   MISSED: 'missed',
@@ -78,23 +79,6 @@ export const EVIDENCE = Object.freeze({
   FOCUS_NOT_APPLICABLE: 'focusNotApplicable',
   NONE: 'none',
 })
-
-// Elements that take keyboard focus with no author intervention. `a` earns it
-// only with an href, which the readout reports as an implicit role of `link`.
-const NATIVELY_FOCUSABLE_TAGS = Object.freeze(['button', 'input', 'select', 'textarea'])
-
-/**
- * Answered from the snapshot's element readout, never from its focus entry.
- * A focus entry of `null` is identical whether the element was never focused
- * or could never be focused at all, so it cannot tell these apart — and
- * telling a player they neglected to keyboard-test an image would teach them
- * something false.
- */
-export function isKeyboardFocusable(readout) {
-  if (!readout) return false
-  if (readout.tagName === 'a') return readout.role === 'link'
-  return NATIVELY_FOCUSABLE_TAGS.includes(readout.tagName)
-}
 
 /**
  * The reading that answers one finding flagged in error, as
