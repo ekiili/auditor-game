@@ -1,4 +1,4 @@
-> **CLAUDE.md — v14 (2026-07-31)**
+> **CLAUDE.md — v15 (2026-08-01)**
 > This file is maintained by the Planner. Do not edit, append to, or
 > reorganize it. If you find it incomplete, ambiguous, or contradicted by
 > your task prompt, do not resolve the conflict yourself — report the
@@ -28,6 +28,8 @@ The full product specification is at `docs/prd.md`. Where the PRD and this file 
 * **oxlint** — the linter in this repo. It is not ESLint; rule names differ. Enabled plugins are `react` and `oxc`; `jsx-a11y` is not enabled.
 
 Build machinery pulled in by the above — `@vitejs/plugin-react`, `postcss`, `@tailwindcss/postcss`, `autoprefixer` — is expected and not a deviation.
+
+**Tailwind v4 emits only the theme variables its own utilities use.** A palette colour referenced from anywhere Tailwind does not itself compile — hand-written CSS, a generated `<style>` element — resolves to nothing, silently, with no build error and no console warning. Any palette value needed outside a utility class must be pinned explicitly in `src/index.css`. This has already cost one debugging cycle.
 
 Do not add dependencies beyond these without asking.
 
@@ -78,6 +80,8 @@ Never name a prop `isBroken`, `isBugActive`, `hasViolation`, or similar, and nev
 | **2.4.7** Focus Visible | `add-to-cart` | `focusStyle` | `'visible'` | `'none'` | Keyboard focus indicator is absent. |
 | **2.5.8** Target Size (Minimum) | `remove-item` | `removeButtonSize` | `'default'` | `'compact'` | Touch target is 16px, below the 24px minimum. |
 
+This table maps rules to sabotage. It is not the whole prop surface of the level component — see **Level component props outside sabotage** in Data Contracts.
+
 ### Levels
 
 Each level is a self-contained directory exporting one object from its `index.js`. Its fields are defined by the **Level module** contract below.
@@ -102,13 +106,16 @@ src/
 │  ├─ SelectionOverlay.jsx
 │  ├─ ReadoutPanel.jsx
 │  ├─ RulePicker.jsx
-│  └─ GuessLog.jsx
+│  ├─ GuessLog.jsx
+│  ├─ FindingsList.jsx
+│  └─ ReviewMarks.jsx
 ├─ data/
 │  └─ wcagRules.js                 static rule data only — no logic
 ├─ engine/
 │  ├─ saboteurEngine.js            violation selection
 │  ├─ scoring.js                   guess comparison
-│  └─ readout.js                   live-DOM inspection — read-only
+│  ├─ readout.js                   live-DOM inspection — read-only
+│  └─ review.js                    outcome derivation for the review
 ├─ state/
 │  └─ gameState.js                 reducer and round lifecycle
 └─ levels/
@@ -138,7 +145,7 @@ A **pure module** is one that transitively imports no `.jsx`. Every pure module 
 
 Modules that reach JSX are outside that rule. The level `index.js` files are permanently among them by construction: the Level module contract requires a `Component`, and `node` cannot parse `.jsx` at all. This is a property of the architecture, not a defect, and must not be "fixed."
 
-**A verification script imports the pure module it needs directly** — `sabotage.js`, `variants.js`, `saboteurEngine.js`, `scoring.js`, `readout.js`, `gameState.js`, `wcagRules.js` — never a level `index.js` or the registry. A script that fails with `ERR_UNKNOWN_FILE_EXTENSION` is reaching through a component; point it at the pure module instead and report that the task prompt sent it the wrong way.
+**A verification script imports the pure module it needs directly** — `sabotage.js`, `variants.js`, `saboteurEngine.js`, `scoring.js`, `readout.js`, `review.js`, `gameState.js`, `wcagRules.js` — never a level `index.js` or the registry. A script that fails with `ERR_UNKNOWN_FILE_EXTENSION` is reaching through a component; point it at the pure module instead and report that the task prompt sent it the wrong way.
 
 ---
 
@@ -223,6 +230,22 @@ For `ecommerce-checkout`, a clean round returns:
 * Rule 1.1.1 injected — the key is **present with the value `undefined`**, which overrides the default and removes the alt text.
 
 `{}` and `{ imageAlt: undefined }` are therefore different instructions, not the same one. Any code inspecting this object must distinguish key presence from value, and any new prop following this pattern must be recorded here.
+
+### Level component props outside sabotage
+
+A level `Component` may receive props that describe a rendering variant without corresponding to any rule. These are **not** produced by `applySabotage` and never appear in the Variant Props table.
+
+For `ecommerce-checkout`:
+
+```js
+{ interactive: boolean }   // default: true
+```
+
+* `interactive` — when `false`, the component's own controls are removed from the tab order. It is a rendering variant in neutral language and states nothing about correctness, compliance, or bugs. The component is not told why it is being asked.
+
+The game sets it `false` while `status` is `'reviewing'`, and never otherwise. Pointer activation is suppressed separately, outside the component.
+
+**Any future prop of this kind is recorded here before it is built.** A prop that crosses into a level component and is not in the Variant Props table has no other home, and an unrecorded one is indistinguishable from game logic leaking into the presentation layer.
 
 ### Readout object
 
@@ -354,11 +377,11 @@ Captured when the player confirms Submit, carried in `submitAudit`'s payload, an
 * Both maps hold an entry for **every** audit target in the level — all six on `ecommerce-checkout` — not only the ones the player flagged. A missed violation needs explaining as much as a false alarm does.
 * Keys are the audit target identifier: the same string that appears in `data-audit-target`, as `target` in a Violation entry, and as `id` in an `auditTargets` entry.
 * `elements` values are read live from the DOM at the moment Submit is confirmed. They are never `null`.
-* **The confirmation dialog is closed before the snapshot is built.** On the empty-log path, `close()` runs first and the snapshot is read with no modal open. This ordering is part of the contract, not an implementation detail: an open modal can change what the document measures — blocked page scrolling reclaims a space-taking scrollbar, the viewport narrows, and any fluid element reports a width the player never saw. Do not reorder these two calls.
-* `focus` values are accumulated **during** the round as the player moves focus, not read at submission. The confirmation dialog takes focus, so nothing about the card's focus state survives to that point.
+* **Nothing may be overlaying or obstructing the page when the snapshot is read.** Whatever the submit confirmation is at the time, it is dismissed first and the reading is taken afterwards. This ordering is part of the contract, not an implementation detail: anything that blocks page scrolling can reclaim a space-taking scrollbar, narrowing the viewport, and any fluid element then reports a width the player never saw. The rule is about the page being unobstructed, not about any particular confirmation mechanism, and it survives changes to that mechanism.
+* `focus` values are accumulated **during** the round as the player moves focus, not read at submission. The submit confirmation may itself take focus, so nothing about the card's focus state can be assumed to survive to that point.
 * A `focus` value of `null` means exactly one thing: that element never received focus during the round. It never means "focused but unmeasurable." The key is always present — absence is expressed as `null`, as everywhere else in these contracts.
 * **`null` does not distinguish "not focused" from "not focusable."** `product-image` is an `<img>` and never enters the tab order, so its entry is `null` in every round that will ever be played. Anything reading `focus` must establish that an element is focusable at all before treating `null` as something the player failed to do. Telling a player they neglected to keyboard-test an image would teach them something false.
-* Nothing focuses an element in order to fill this in. `readout.js` never calls `.focus()`, and a reading taken from an element the player never reached is not evidence of what they saw.
+* **The game never moves focus on its own in order to populate this.** A reading harvested from an element the player never chose to test is not evidence of anything they saw. A player deliberately invoking the Inspector's focus control is a different case entirely — that is the player performing the test, and the resulting reading is legitimate. `readout.js` still never calls `.focus()`; moving focus is the caller's act, never the reader's.
 
 The snapshot exists because a false alarm is explained by the measurement the player misjudged — "it measured 44 by 44" — and that measurement is gone once the next round renders. A missed violation is explained from the rule's static `description` and needs no snapshot.
 
@@ -413,17 +436,17 @@ Violations are applied by passing variant props down from the engine. Never inje
 **5. Reading the DOM Is Allowed; Mutating It Is Not.**
 The Inspector computes its readout from the rendered elements — `getComputedStyle`, `getBoundingClientRect`, attribute lookups, accessible name computation. This is required, because a readout derived from game state would agree with the sabotage layer even when the sabotage layer is broken. Read freely. Never write.
 
-The sole sanctioned exception is `document.getElementById('root')` in `main.jsx`, which React requires to mount.
+Two sanctioned exceptions: `document.getElementById('root')` in `main.jsx`, which React requires to mount; and calling `.focus()` on an audit target in response to a deliberate player action, which moves focus without altering the element.
 
 **6. Never Auto-Correct Injected Violations.**
 Code producing an accessibility violation via a variant prop is intentional. Do not fix it, do not comment on it, do not "improve" it while editing nearby lines, and do not refactor it toward compliance. If a linter flags these paths, add a narrowly scoped disable comment and report it — never change behaviour to satisfy a linter.
 
 **7. Audit Mode Intercepts, It Does Not Rewrite.**
-When Audit Mode suppresses link navigation, form submission, or control activation, do it with React event handlers and `preventDefault()`. Never strip `href`, swap a `<button>` for a `<div>`, add `disabled`, add `tabindex="-1"`, or unmount elements. Altering the markup would change the exact accessibility properties the player is being asked to judge.
+When Audit Mode suppresses link navigation, form submission, or control activation, do it with React event handlers and `preventDefault()`. Never strip `href`, swap a `<button>` for a `<div>`, add `disabled`, remove an element from the tab order, or unmount elements. Altering the markup would change the exact accessibility properties the player is being asked to judge.
 
-**Suppress activation, never focus.** The player tests 2.4.7 by tabbing to a control and looking for a focus indicator. Anything that removes a control from the tab order destroys the thing being audited.
+**Suppress activation, never focus.** The player tests 2.4.7 by moving focus to a control and looking for an indicator. Anything that removes a control from the tab order destroys the thing being audited.
 
-**This guardrail governs the `'auditing'` state.** It exists because the component's focus behaviour is itself under audit. Once the round is scored and `status` is `'reviewing'`, there is nothing left to judge and the review's own rules apply instead — see Settled Decisions.
+**This guardrail governs the `'auditing'` state.** It exists because the component's focus behaviour is itself under audit. Once the round is scored and `status` is `'reviewing'`, there is nothing left to judge, and focusability is released through the `interactive` prop recorded in Data Contracts.
 
 **8. Step-by-Step Execution.**
 Do not build ahead. If asked to build a button, build only that button. Do not invent game loops, menus, routing, animations, or extra features unless explicitly instructed. If a task's scope is ambiguous, ask rather than resolving it silently.
@@ -432,7 +455,7 @@ Do not build ahead. If asked to build a button, build only that button. Do not i
 
 ## Accessibility Standards
 
-**Scope:** the game's own chrome — HUD, Inspector, buttons, modals, review marks and findings list — is **always** fully WCAG 2.2 AA compliant. Only the level component inside the canvas is ever degraded, and only through variant props.
+**Scope:** the game's own chrome — HUD, Inspector, buttons, submit confirmation, review marks and findings list — is **always** fully WCAG 2.2 AA compliant. Only the level component inside the canvas is ever degraded, and only through variant props.
 
 All baseline code must strictly adhere to WCAG 2.2 AA:
 
@@ -464,7 +487,12 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 
 * **Scoring:** +1 per true positive, −1 per false positive, −1 per false negative. A correct empty submission on a clean round scores +1. Round scores may go negative and are not clamped. Values are provisional and defined as named constants for tuning.
 * **No "Declare Compliant" control.** Submit means "I have logged every violation I found." An empty log is a valid answer, guarded by a confirmation step.
+* **The submit confirmation is an inline panel, not a modal.** It appears near the Submit control, does not overlay or tint the page, and does not block interaction elsewhere. Because it is not a modal, the browser supplies none of the behaviour a dialog would: moving focus into the panel when it opens, dismissal on Escape, and returning focus to the Submit control on cancel are each built deliberately. Losing them would trade a visual complaint for an accessibility failure, in the one project that cannot afford one.
 * **Audit Mode starts off** each round, so the player can use the component normally first.
+* **The game is fully playable with a mouse alone.** It is a point-and-click game, and every check the player is asked to make must be reachable without the keyboard. A player who never presses Tab must be able to complete a round and evaluate all four criteria. Keyboard operation remains fully supported; neither input method is the fallback.
+* **The Inspector offers a control that moves keyboard focus onto the current element.** This is the primary route for evaluating 2.4.7, not an accommodation — a player will not reach for Tab to check one criterion out of an eventual fifty. The focus it moves is real, so the reading it produces is honest.
+  * **This must be proven before anything is built on it.** Browsers differ on whether focus moved programmatically displays the indicator at all. If it does not, a compliant element would read as failing, which is worse than the dead end it replaces. Establish the behaviour empirically and report it first.
+  * **On an element that can never receive focus, the control stays visible and explains itself.** `product-image` is an `<img>` and is not focusable in any browser. The control says so rather than disappearing or failing silently: a stated reason teaches that not everything is meant to be focusable, while a missing control teaches nothing.
 * **Audit Mode off means no visible game.** Before Audit Mode is enabled the page looks like an ordinary website — no Inspector, no overlays, no annotations over the card. The target list, overlay, readout panel, rule picker and guess log are absent from the DOM, not hidden.
 * **The game never scrolls the page.** Both columns are constrained to the viewport height and scroll internally, within their own containers. The audited component is visible at every moment of the round, because the game's core act is comparing what the element looks like against what the Inspector reports about it, and that comparison cannot survive a scroll. Two consequences are load-bearing and must survive any later refactor:
   * **Each column carries `position: relative`.** The `sr-only` helpers are `position: absolute` with no offsets, so without a positioned ancestor they resolve against the initial containing block, escape their column's `overflow`, and grow the document past the viewport — two 1px elements are enough to defeat the whole decision. `position: relative` is safe here: it does not create a containing block for `position: fixed` and so cannot capture the selection overlay, where `transform`, `filter`, `perspective` and `contain` would.
@@ -481,7 +509,10 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 * **The picker lists rules, not applicable rules.** It is never filtered by the current element, never by `sabotageMap`, never by what could plausibly be wrong. Every rule is offered against every target — twenty-four pairs against a `sabotageMap` of four — and narrowing the list would hand over the answer key.
 * **A confirmed submission places focus on the advance control.** The Submit control unmounts in the same commit that reaches `'reviewing'`, so the element a native `<dialog>` would restore focus to no longer exists and focus would fall to the document body. Focus is moved deliberately instead. This is not achieved by adding `tabIndex` to a container.
 * **The review explains all three outcomes** — violations the player caught, violations they missed, and things they flagged that were fine. Over-reporting is as damaging as under-reporting in real auditing, and a scoring penalty with no explanation teaches caution rather than judgement.
-* **The review is marked on the card and read in the findings list.** Every element carrying an outcome receives a static, non-interactive mark, so the whole result is visible at once. All interaction — selecting a finding, reading its explanation — belongs to the findings list, which is the single authoritative place a result is read. Marks are applied to the elements themselves rather than as positioned overlays, and must not affect layout: the card in review measures identically to the card the player audited. The CSS property used is not prescribed here; layout-neutrality is the requirement.
+* **The review is marked on the card and read in the findings list.** Every element carrying an outcome receives a static, non-interactive mark, so the whole result is visible at once. All interaction — selecting a finding, reading its explanation — belongs to the findings list, which is the single authoritative place a result is read. Marks are applied to the elements themselves rather than as positioned overlays, and must not affect layout: the card in review measures identically to the card the player audited.
+* **Marks reach the elements as generated styling, not as anything handed to the component.** They are emitted as a `<style>` element carrying rules keyed on `data-audit-target`, scoped by an attribute on the wrapper. The level component receives nothing about them and stays unaware the review exists, exactly as it is unaware of canvas clicks. Do not "simplify" this into props, class names, or per-target enumeration; each of those puts game knowledge inside the presentation layer.
+* **The auditing tools unmount when the review opens.** The target list, Inspector, rule picker and guess log are absent during `'reviewing'`. They belong to the act of auditing, which is over, and leaving them above the findings would contradict the findings list being the single authoritative place a result is read.
+* **Selecting a finding never draws a second ring.** The selection overlay is not rendered during `'reviewing'`. Selecting an entry intensifies the mark the element already carries, so the element keeps exactly one ring and that ring still states its outcome. Two rings at different offsets and colours read as an accident rather than as emphasis.
 * **A mark describes an element, not a finding.** A finding is a (rule, target) pair, but a mark is drawn on an element, so a mark reports that element's overall state. Precedence: an unresolved violation outranks everything else, and a flagged-in-error mark appears only when the element was otherwise clean. An element flagged under the wrong rule therefore reads as missed. That is the common case rather than an edge case — recognising something is wrong while naming the wrong criterion is the result the game most needs to teach — and both findings remain in the list, where there is room to explain the distinction.
 * **Outcome is carried by line style, never by colour alone.** Missed is dashed; flagged in error is dotted; caught is a double line, falling back to solid when the element's smaller dimension is under 24 CSS pixels, because a double line stops reading as two lines on a small target. The threshold is evaluated against the dimensions already held in the Round snapshot, so no measurement is added at review time. Dashed and dotted are close to one another at small sizes and are accepted as such; the findings list remains the authoritative statement of what a mark means.
 * **During review the card is inert but not hidden.** Once the round is scored, nothing in the level component is clickable or keyboard-reachable. It remains fully present in the accessibility tree: a player using a screen reader must still be able to work through the component and meet the violations directly, which is the more instructive experience. The HTML `inert` attribute is therefore the wrong mechanism — it removes content from the accessibility tree as well as from the tab order. This is the review-state counterpart to Guardrail 7 and does not weaken it: focusability is preserved throughout `'auditing'`, where it is under audit, and released only in `'reviewing'`, where nothing remains to be judged.
