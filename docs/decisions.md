@@ -623,6 +623,27 @@ accepted.
 
 ---
 
+## 35. Focus is applied on selection
+
+**Date:** 2026-08-01 · **Status:** Accepted
+
+Selecting an element in the Inspector — from the target list or by clicking it
+on the card — moves real keyboard focus onto it, so the focus reading is
+present without the player asking for it. The dedicated control that previously
+did this is removed.
+
+This supersedes the decision that made that control the primary route to
+checking focus visibility. Every other reading in the Inspector is presented on
+selection; requiring a separate click for this one made 2.4.7 the only
+criterion the player had to request, and doubled the interactions needed per
+element for a single rule. The skill being trained is recognising that a
+missing indicator is a violation and logging it against the right element,
+which is unaffected by showing the state sooner.
+
+The product image cannot take focus, so the not-focused state remains for it.
+
+---
+
 ## Open questions
 
 Open questions are tracked in the Pending Decisions section of `CLAUDE.md`,
