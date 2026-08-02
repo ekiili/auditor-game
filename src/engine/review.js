@@ -89,7 +89,6 @@ export const EVIDENCE = Object.freeze({
   ACCESSIBLE_NAME: 'accessibleName',
   SIZE: 'size',
   FOCUS_STYLING: 'focusStyling',
-  FOCUS_NEVER_REACHED: 'focusNeverReached',
   FOCUS_NOT_APPLICABLE: 'focusNotApplicable',
   NONE: 'none',
 })
@@ -98,7 +97,11 @@ export const EVIDENCE = Object.freeze({
  * The reading that answers one finding flagged in error, as
  * `{ kind, ...facts }`. A size failure is answered by dimensions, a missing
  * text alternative by the accessible name, and a focus failure by whichever of
- * the three focus cases applies.
+ * the two focus cases applies.
+ *
+ * There is no case for a focusable element with no focus reading. Logging a
+ * finding requires selecting its element, and selecting an element focuses it,
+ * so the reading always exists by the time a finding can name that element.
  */
 export function deriveEvidence(ruleId, readout, focusReadout) {
   if (!readout) return { kind: EVIDENCE.NONE }
@@ -115,7 +118,9 @@ export function deriveEvidence(ruleId, readout, focusReadout) {
     if (!isKeyboardFocusable(readout)) {
       return { kind: EVIDENCE.FOCUS_NOT_APPLICABLE, tagName: readout.tagName }
     }
-    if (!focusReadout) return { kind: EVIDENCE.FOCUS_NEVER_REACHED }
+    // Same treatment a missing element readout gets above: no reading, no
+    // sentence. The finding still carries its rule's explanation.
+    if (!focusReadout) return { kind: EVIDENCE.NONE }
     return {
       kind: EVIDENCE.FOCUS_STYLING,
       outlineStyle: focusReadout.outlineStyle,

@@ -27,8 +27,6 @@ import {
 
 const [currentLevel] = levels
 
-const ACTIVATION_KEYS = ['Enter', ' ']
-
 // Keyed by `status`; an absent key means the control is available.
 const TOGGLE_UNAVAILABLE_REASONS = {
   reviewing: 'Not available while you review this round.',
@@ -104,15 +102,14 @@ function App() {
     event.preventDefault()
   }
 
-  // Capture phase: a bubble-phase handler would run after the card's own
-  // onClick, letting the stepper change its value on a click meant to select.
+  // Capture phase, so the selection is recorded before the card's own onClick
+  // runs. The click is not suppressed: a click both operates the control and
+  // selects it, because operating a control is part of how a real audit is
+  // conducted and nothing consequential happens when this card is operated.
   const handleCanvasClickCapture = (event) => {
     if (!state.auditMode) return
 
     const element = event.target.closest('[data-audit-target]')
-
-    event.preventDefault()
-    event.stopPropagation()
 
     if (element) {
       // Focus first: the focusin it raises records the reading while the
@@ -122,16 +119,6 @@ function App() {
       focusTarget(element.dataset.auditTarget)
       dispatch(selectTarget(element.dataset.auditTarget))
     }
-  }
-
-  // Activation is suppressed; focus is not. Tab still moves through the card,
-  // which is how the player checks for a focus indicator.
-  const handleCanvasKeyDownCapture = (event) => {
-    if (!state.auditMode) return
-    if (!ACTIVATION_KEYS.includes(event.key)) return
-
-    event.preventDefault()
-    event.stopPropagation()
   }
 
   // React's onFocus is delegated as native `focusin`, which bubbles — plain
@@ -302,7 +289,6 @@ function App() {
             {...markScope}
             onMouseDownCapture={handleCanvasMouseDownCapture}
             onClickCapture={handleCanvasClickCapture}
-            onKeyDownCapture={handleCanvasKeyDownCapture}
             onFocus={handleCanvasFocus}
           >
             <LevelComponent

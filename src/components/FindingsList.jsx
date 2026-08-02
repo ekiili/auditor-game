@@ -24,11 +24,6 @@ const EVIDENCE_TEXT = {
     return `While it held focus its outline was ${outlineStyle} ${outlineWidth}.`
   },
 
-  // Not an error state, and it must not read as one: the player did the audit
-  // without running the test, which is the lesson rather than a fault.
-  [EVIDENCE.FOCUS_NEVER_REACHED]: () =>
-    'Focus never reached this element during the round. A focus indicator can only be judged while the element holds focus.',
-
   // Never "you did not test it". The criterion genuinely does not apply.
   [EVIDENCE.FOCUS_NOT_APPLICABLE]: ({ tagName }) =>
     `The <${tagName}> element never takes keyboard focus, so this criterion does not apply to it.`,
