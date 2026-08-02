@@ -644,6 +644,53 @@ The product image cannot take focus, so the not-focused state remains for it.
 
 ---
 
+## 36. The card stays live during an audit
+
+**Date:** 2026-08-02 · **Status:** Accepted
+
+The component under audit remains fully operable while Audit Mode is on. The
+existing suppression of Enter and Space is removed rather than extended.
+
+The suppression was incomplete — arrow keys and typing still changed the
+quantity — and completing it would have meant enumerating every route by which
+a control can be operated, a list that grows with every component added. The
+alternative considered was freezing the component's state instead of blocking
+input, which fixes the gap in one rule rather than many.
+
+Live was chosen over frozen because nothing consequential happens when the card
+is operated: the quantity counter is the only functioning control, and the ✕
+closes nothing. Operating a control is also part of how a real audit is
+conducted, so a component that responds is closer to the thing being taught
+than one that does not.
+
+---
+
+## 37. The end-of-session report records the session
+
+**Date:** 2026-08-02 · **Status:** Accepted
+
+After ten rounds the player sees the whole session on one screen: a row per
+round showing its score, the word "Perfect!" beside the rounds that were
+flawless, each row expanding to what was missed or wrongly flagged, and the
+session total at the bottom.
+
+It reports what happened and does not characterise the player. Ten rounds
+across four criteria is far too small a sample to support a claim like "you
+struggle with labels", and a training tool that makes claims its evidence
+cannot carry teaches the opposite of what it is for. This is the same principle
+the Inspector already runs on: state the facts, let the player draw the
+conclusion. The alternative considered was a teaching summary of recurring
+weaknesses, rejected on those grounds.
+
+Clean rounds drop from 20% of rounds to 5% in the same decision. "Perfect!"
+has to be earned to be worth seeing, and at 20% a fifth of the marks were
+available for correctly submitting nothing. The cost is accepted: most sessions
+will now contain no clean round at all, so the case where the right answer is
+"nothing is wrong" becomes something a player may not meet for several
+sessions.
+
+---
+
 ## Open questions
 
 Open questions are tracked in the Pending Decisions section of `CLAUDE.md`,
