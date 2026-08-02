@@ -38,6 +38,42 @@ const TOGGLE_UNAVAILABLE_REASONS = {
 const BUTTON_CLASSES =
   'inline-flex min-h-11 items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700'
 
+// From lg up the tools are two columns side by side, so the player never has
+// to scroll between choosing an element and reading what it measures. Below lg
+// they are one column, exactly as they have always been: the sub-columns are
+// `display: contents` there, so they generate no boxes at all and the six
+// panels remain direct children of the wrapper's own flex column.
+//
+// The widths are fixed rather than fluid, and that is the whole point. The
+// card's column takes what is left over, so it can only change width if one of
+// these does — and neither responds to its contents. An Inspector that grows
+// scrolls inside 24rem; it never widens, and the card never moves.
+//
+//   14rem   target list — the longest label at text-sm plus its padding
+//   24rem   Inspector column — the width the single tools column always had
+//   39.5rem wrapper — 14 + 1.5 (the gap) + 24
+//
+// The wrapper is pinned to that sum in every status. The review fills it as
+// one column instead of two; had it shrink-wrapped its own content instead,
+// the card would have jumped sideways between the audit and the review of the
+// same round — the one moment the player is asked to compare them.
+const TOOLS_WRAPPER_CLASSES =
+  'relative flex w-full min-h-0 max-w-sm flex-1 flex-col gap-6 overflow-y-auto lg:w-158 lg:max-w-none lg:flex-none lg:flex-row lg:overflow-visible'
+
+// The end-of-session report has no card beside it, so it takes the whole row.
+const REPORT_WRAPPER_CLASSES =
+  'relative flex w-full min-h-0 max-w-sm flex-1 flex-col gap-6 overflow-y-auto lg:max-w-none'
+
+// `relative` on each sub-column for the reason the outer columns carry it: the
+// visually hidden radios in the target list and the rule picker are
+// position:absolute, and an unpositioned ancestor chain would let them resolve
+// against the initial containing block and grow the document.
+const TARGETS_COLUMN_CLASSES =
+  'contents lg:relative lg:flex lg:w-56 lg:min-h-0 lg:shrink-0 lg:flex-col lg:gap-6 lg:overflow-y-auto'
+
+const FLUID_COLUMN_CLASSES =
+  'contents lg:relative lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:gap-6 lg:overflow-y-auto'
+
 function App() {
   const [state, dispatch] = useReducer(gameReducer, INITIAL_STATE)
   const canvasRef = useRef(null)
@@ -265,6 +301,7 @@ function App() {
   const result = state.lastResult
   const isAuditing = state.status === 'auditing'
   const isReviewing = state.status === 'reviewing'
+  const isGameOver = state.status === 'gameOver'
 
   // Audit Mode belongs to the act of auditing. Once the round is scored there
   // is nothing left to switch off, and switching it off used to unmount the
@@ -287,7 +324,14 @@ function App() {
   // pointer route; `interactive={false}` puts the controls out of the tab
   // order without disabling or hiding them. `inert` would do both at once and
   // take the component out of the accessibility tree with it.
-  const cardWrapperClasses = isReviewing ? 'w-full pointer-events-none' : 'w-full'
+  //
+  // Still sizing-only — no padding, margin, border or transform. `max-w-sm`
+  // is what the card is centred at inside its wider column, and `shrink-0`
+  // keeps the column's own overflow the safety valve on a short viewport
+  // rather than letting the flex column squash the card instead.
+  const cardWrapperClasses = isReviewing
+    ? 'w-full max-w-sm shrink-0 pointer-events-none'
+    : 'w-full max-w-sm shrink-0'
   const markScope = isReviewing ? { [MARK_SCOPE_ATTRIBUTE]: '' } : {}
 
   // h-screen + overflow-hidden, not min-h-screen: the document must never grow
@@ -306,14 +350,16 @@ function App() {
 
       {/* min-h-0 lets the columns shrink below their content height, which is
           what makes their own overflow-y-auto engage instead of pushing the
-          row taller. lg:items-stretch gives both columns the full row height,
-          so the card's position no longer depends on how tall the chrome
-          column grows — inspecting an element never moves it. */}
+          row taller. lg:items-stretch gives every column the full row height,
+          so the card's position no longer depends on how tall anything beside
+          it grows — inspecting an element never moves it. */}
       <div className="flex w-full min-h-0 flex-1 flex-col items-center gap-6 lg:flex-row lg:items-stretch lg:justify-center">
         {/* Scrolling lives on this column, never on the sizing-only wrapper
             below: a safety valve for viewports too short for the card, which
-            scrolls rather than clipping it. lg:flex-initial restores the
-            content-width sizing the row layout expects.
+            scrolls rather than clipping it. From lg up the column takes
+            whatever the two fixed-width tools columns leave, and centres the
+            card in it — the card's own max-width, not the column's, is what
+            decides how wide it renders.
 
             `relative` is load-bearing, not decoration. The sr-only live region
             inside the stepper is position:absolute; without a positioned
@@ -321,122 +367,127 @@ function App() {
             this column's overflow entirely, and grows the document instead.
             It does not affect the overlay, which is position:fixed — only
             transform/filter/contain would capture that, and none is used. */}
-        <div className="relative w-full min-h-0 max-w-sm flex-1 overflow-y-auto lg:flex-initial">
-          <div
-            ref={canvasRef}
-            className={cardWrapperClasses}
-            {...markScope}
-            onMouseDownCapture={handleCanvasMouseDownCapture}
-            onClickCapture={handleCanvasClickCapture}
-            onFocus={handleCanvasFocus}
-          >
-            <LevelComponent
-              {...currentLevel.applySabotage(state.truth)}
-              interactive={!isReviewing}
-            />
+        {!isGameOver && (
+          <div className="relative w-full min-h-0 max-w-sm flex-1 overflow-y-auto lg:flex lg:max-w-none lg:flex-col lg:items-center">
+            <div
+              ref={canvasRef}
+              className={cardWrapperClasses}
+              {...markScope}
+              onMouseDownCapture={handleCanvasMouseDownCapture}
+              onClickCapture={handleCanvasClickCapture}
+              onFocus={handleCanvasFocus}
+            >
+              <LevelComponent
+                {...currentLevel.applySabotage(state.truth)}
+                interactive={!isReviewing}
+              />
+            </div>
+
+            {isReviewing && <ReviewMarks marks={marks} selectedTarget={state.selectedTarget} />}
           </div>
+        )}
 
-          {isReviewing && <ReviewMarks marks={marks} selectedTarget={state.selectedTarget} />}
-        </div>
-
-        {/* `relative` for the same reason as the card column: the visually
-            hidden radios and separators in the target list and rule picker are
-            position:absolute. */}
         {showChromeColumn && (
-          <div className="relative flex w-full min-h-0 max-w-sm flex-1 flex-col gap-6 overflow-y-auto lg:flex-initial">
+          <div className={isGameOver ? REPORT_WRAPPER_CLASSES : TOOLS_WRAPPER_CLASSES}>
             {/* The auditing tools belong to the round, not to the result. Once
                 the round is scored the findings list is the single place a
-                result is read, and the column is its to fill. */}
-            {state.status === 'auditing' && (
+                result is read, and the wrapper is its to fill. */}
+            {isAuditing && (
               <>
-                {/* Both selection routes move focus, so the reading the panel
-                    shows never depends on how the player got there. */}
-                <TargetList
-                  auditTargets={currentLevel.auditTargets}
-                  selectedTarget={state.selectedTarget}
-                  onSelect={(targetId) => {
-                    focusTarget(targetId)
-                    dispatch(selectTarget(targetId))
-                  }}
-                />
-
-                <ReadoutPanel targetId={state.selectedTarget} containerRef={canvasRef} />
-
-                <RulePicker
-                  selectedTarget={state.selectedTarget}
-                  selectedRule={state.selectedRule}
-                  guesses={state.guesses}
-                  onSelectRule={(ruleId) => dispatch(selectRule(ruleId))}
-                  onLog={() =>
-                    dispatch(addGuess({ ruleId: state.selectedRule, target: state.selectedTarget }))
-                  }
-                />
-
-                <GuessLog
-                  guesses={state.guesses}
-                  auditTargets={currentLevel.auditTargets}
-                  onRemove={(guess) => dispatch(removeGuess(guess))}
-                />
-
-                <div>
-                  <button
-                    type="button"
-                    ref={submitRef}
-                    onClick={handleSubmit}
-                    className={BUTTON_CLASSES}
-                  >
-                    Submit audit
-                  </button>
+                <div className={TARGETS_COLUMN_CLASSES}>
+                  {/* Both selection routes move focus, so the reading the panel
+                      shows never depends on how the player got there. */}
+                  <TargetList
+                    auditTargets={currentLevel.auditTargets}
+                    selectedTarget={state.selectedTarget}
+                    onSelect={(targetId) => {
+                      focusTarget(targetId)
+                      dispatch(selectTarget(targetId))
+                    }}
+                  />
                 </div>
 
-                {/* Inline, in the chrome column, directly under the control it
-                    belongs to. It takes layout space where the modal did not,
-                    so it is placed in the column that already has a fixed
-                    height and its own scroll — the card is in the other column
-                    and cannot be moved by anything that happens here. */}
-                {showConfirmPanel && (
-                  <section
-                    aria-labelledby={confirmTitleId}
-                    className="rounded-lg border-2 border-indigo-700 bg-white p-4"
-                  >
-                    <h2 id={confirmTitleId} className="text-base font-semibold text-gray-900">
-                      Confirm submission
-                    </h2>
+                <div className={FLUID_COLUMN_CLASSES}>
+                  <ReadoutPanel targetId={state.selectedTarget} containerRef={canvasRef} />
 
-                    <p id={confirmDescriptionId} className="mt-2 text-sm text-gray-900">
-                      Submit with no violations logged? You&apos;re declaring this component
-                      compliant.
-                    </p>
+                  <RulePicker
+                    selectedTarget={state.selectedTarget}
+                    selectedRule={state.selectedRule}
+                    guesses={state.guesses}
+                    onSelectRule={(ruleId) => dispatch(selectRule(ruleId))}
+                    onLog={() =>
+                      dispatch(
+                        addGuess({ ruleId: state.selectedRule, target: state.selectedTarget }),
+                      )
+                    }
+                  />
 
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <button
-                        type="button"
-                        ref={cancelConfirmRef}
-                        onClick={closeConfirm}
-                        aria-describedby={confirmDescriptionId}
-                        className={BUTTON_CLASSES}
-                      >
-                        Cancel
-                      </button>
+                  <GuessLog
+                    guesses={state.guesses}
+                    auditTargets={currentLevel.auditTargets}
+                    onRemove={(guess) => dispatch(removeGuess(guess))}
+                  />
 
-                      {/* Not "Submit audit" a second time: two buttons with one
-                          accessible name is a puzzle for anyone listing them. */}
-                      <button
-                        type="button"
-                        onClick={handleConfirmSubmit}
-                        aria-describedby={confirmDescriptionId}
-                        className={BUTTON_CLASSES}
-                      >
-                        Submit with nothing logged
-                      </button>
-                    </div>
-                  </section>
-                )}
+                  <div>
+                    <button
+                      type="button"
+                      ref={submitRef}
+                      onClick={handleSubmit}
+                      className={BUTTON_CLASSES}
+                    >
+                      Submit audit
+                    </button>
+                  </div>
+
+                  {/* Inline, in the tools region, directly under the control it
+                      belongs to. It takes layout space where the modal did not,
+                      so it is placed in a column that already has a fixed
+                      height and its own scroll — the card is in another column
+                      and cannot be moved by anything that happens here. */}
+                  {showConfirmPanel && (
+                    <section
+                      aria-labelledby={confirmTitleId}
+                      className="rounded-lg border-2 border-indigo-700 bg-white p-4"
+                    >
+                      <h2 id={confirmTitleId} className="text-base font-semibold text-gray-900">
+                        Confirm submission
+                      </h2>
+
+                      <p id={confirmDescriptionId} className="mt-2 text-sm text-gray-900">
+                        Submit with no violations logged? You&apos;re declaring this component
+                        compliant.
+                      </p>
+
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        <button
+                          type="button"
+                          ref={cancelConfirmRef}
+                          onClick={closeConfirm}
+                          aria-describedby={confirmDescriptionId}
+                          className={BUTTON_CLASSES}
+                        >
+                          Cancel
+                        </button>
+
+                        {/* Not "Submit audit" a second time: two buttons with one
+                            accessible name is a puzzle for anyone listing them. */}
+                        <button
+                          type="button"
+                          onClick={handleConfirmSubmit}
+                          aria-describedby={confirmDescriptionId}
+                          className={BUTTON_CLASSES}
+                        >
+                          Submit with nothing logged
+                        </button>
+                      </div>
+                    </section>
+                  )}
+                </div>
               </>
             )}
 
             {isReviewing && result !== null && (
-              <>
+              <div className={FLUID_COLUMN_CLASSES}>
                 <div className="rounded-lg border border-gray-300 bg-white p-4">
                   <h2 className="text-base font-semibold text-gray-900">
                     Round {state.round} of {state.totalRounds}
@@ -463,10 +514,12 @@ function App() {
                     Next round
                   </button>
                 </div>
-              </>
+              </div>
             )}
 
-            {state.status === 'gameOver' && (
+            {/* No sub-column: the report is the whole row, so there is nothing
+                to divide and no empty column left where the card was. */}
+            {isGameOver && (
               <SessionReport
                 history={state.history}
                 auditTargets={currentLevel.auditTargets}
