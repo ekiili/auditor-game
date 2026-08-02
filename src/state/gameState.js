@@ -59,6 +59,13 @@ export function nextRound({ violations }) {
   return { type: 'nextRound', payload: { violations } }
 }
 
+// Same payload form as nextRound's, and for the same reason: it carries the
+// freshly rolled violations, and a session that later needs a second value
+// alongside them has somewhere to put it.
+export function restartSession({ violations }) {
+  return { type: 'restartSession', payload: { violations } }
+}
+
 export function gameReducer(state = INITIAL_STATE, action) {
   switch (action.type) {
     case 'startRound': {
@@ -159,6 +166,16 @@ export function gameReducer(state = INITIAL_STATE, action) {
         selectedTarget: null,
         selectedRule: null,
       }
+    }
+
+    case 'restartSession': {
+      const { violations } = action.payload
+      // Spread INITIAL_STATE rather than listing the fields: a field added to
+      // the state later is reset by a restart automatically, where an
+      // enumerated list would quietly carry it across into the new session.
+      // Nothing survives but the level being played and the round rolled for
+      // it, and neither is session progress.
+      return { ...INITIAL_STATE, levelId: state.levelId, truth: violations }
     }
 
     default:

@@ -12,13 +12,17 @@ import { useId } from 'react'
 const TOGGLE_CLASSES =
   'inline-flex min-h-11 items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700 aria-disabled:cursor-not-allowed aria-disabled:border-gray-200 aria-disabled:text-gray-700 aria-disabled:hover:bg-white'
 
-function AuditModeToggle({ auditMode, onToggle, unavailableReason = null }) {
+// `ref` lands on the button, not the wrapper: a restart moves focus here, and
+// focus belongs on the control rather than on a container given a tabIndex to
+// receive it. React 19 passes `ref` as an ordinary prop, so no forwardRef.
+function AuditModeToggle({ auditMode, onToggle, unavailableReason = null, ref = null }) {
   const reasonId = useId()
   const isUnavailable = unavailableReason !== null
 
   return (
     <div className="flex flex-wrap items-center gap-3">
       <button
+        ref={ref}
         type="button"
         aria-pressed={auditMode}
         aria-disabled={isUnavailable ? true : undefined}

@@ -1,4 +1,7 @@
-const COMPLIANT_CHANCE = 0.2
+// 5% of rounds are clean. Rare enough that "there must be something here"
+// stays a bad instinct to act on, common enough that a whole session is
+// unlikely to pass without one.
+const COMPLIANT_CHANCE = 0.05
 const MIN_VIOLATION_COUNT = 1
 const MAX_VIOLATION_COUNT = 3
 

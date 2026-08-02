@@ -41,6 +41,23 @@ export const MARK_WEIGHTS = Object.freeze({
 export const HEAVY_MARK_MIN_SIZE = 24
 
 /**
+ * Whether a round went flawlessly: nothing missed and nothing wrongly flagged.
+ *
+ * A correct empty submission on a clean round qualifies — all three arrays are
+ * empty, and reporting a compliant component as compliant is the right answer.
+ *
+ * Deliberately **not** the same question as the review's "Perfect!" heading,
+ * which additionally requires something caught because it labels a populated
+ * caught panel. This asks whether the round was flawless; that asks whether
+ * there is a panel to put a heading over. Sharing one predicate between them
+ * would silently answer one of the two questions wrongly.
+ */
+export function isFlawlessRound(result) {
+  if (!result) return false
+  return result.falseNegatives.length === 0 && result.falsePositives.length === 0
+}
+
+/**
  * Element-level precedence: an unresolved violation outranks everything else,
  * and flagged-in-error appears only when the element was otherwise clean.
  * Applied by assigning in ascending order of precedence and letting the

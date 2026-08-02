@@ -7,6 +7,7 @@ import ReadoutPanel from './components/ReadoutPanel.jsx'
 import ReviewMarks, { MARK_SCOPE_ATTRIBUTE } from './components/ReviewMarks.jsx'
 import RulePicker from './components/RulePicker.jsx'
 import SelectionOverlay from './components/SelectionOverlay.jsx'
+import SessionReport from './components/SessionReport.jsx'
 import TargetList from './components/TargetList.jsx'
 import { inspectElement, inspectFocus, isTextEntry } from './engine/readout.js'
 import { deriveMarks } from './engine/review.js'
@@ -18,6 +19,7 @@ import {
   INITIAL_STATE,
   nextRound,
   removeGuess,
+  restartSession,
   selectRule,
   selectTarget,
   startRound,
@@ -47,6 +49,12 @@ function App() {
   const nextRoundRef = useRef(null)
   const submitRef = useRef(null)
   const cancelConfirmRef = useRef(null)
+  const restartRef = useRef(null)
+  const auditModeRef = useRef(null)
+  // Restarting unmounts the report and the Start a new session control with
+  // it, so focus would fall to the body exactly as it does on a confirmed
+  // submission. It is moved deliberately instead, for the same reason.
+  const focusAuditModeRef = useRef(false)
   // Submitting unmounts the Submit control, and the confirmation with it. The
   // element focus would otherwise return to is gone by then, so focus falls to
   // the body and a keyboard player has to tab from the top of the page to
@@ -180,6 +188,18 @@ function App() {
     nextRoundRef.current?.focus()
   }, [state.status])
 
+  // The counterpart for a restart. Audit Mode is where a new round begins —
+  // it is the only control the fresh screen offers and the first in the page —
+  // so focus lands on the thing the player's next act is, not on a container
+  // given a tabIndex to catch it.
+  useLayoutEffect(() => {
+    if (state.status !== 'auditing') return
+    if (!focusAuditModeRef.current) return
+
+    focusAuditModeRef.current = false
+    auditModeRef.current?.focus()
+  }, [state.status])
+
   // The panel is not a dialog, so the browser supplies none of what a dialog
   // did. Moving focus in, dismissing on Escape, and returning focus to the
   // Submit control are each built here on purpose.
@@ -233,6 +253,15 @@ function App() {
     dispatch(nextRound({ violations: selectViolations(currentLevel) }))
   }
 
+  // A restart rolls its own round, exactly as startRound and nextRound do: the
+  // reducer is handed the violations and never generates them.
+  const handleRestart = () => {
+    focusReadoutsRef.current = {}
+    setConfirmOpen(false)
+    focusAuditModeRef.current = true
+    dispatch(restartSession({ violations: selectViolations(currentLevel) }))
+  }
+
   const result = state.lastResult
   const isAuditing = state.status === 'auditing'
   const isReviewing = state.status === 'reviewing'
@@ -269,6 +298,7 @@ function App() {
       <h1 className="sr-only">Audit Game</h1>
 
       <AuditModeToggle
+        ref={auditModeRef}
         auditMode={state.auditMode}
         onToggle={() => dispatch(toggleAuditMode())}
         unavailableReason={toggleUnavailableReason}
@@ -437,10 +467,13 @@ function App() {
             )}
 
             {state.status === 'gameOver' && (
-              <div className="rounded-lg border border-gray-300 bg-white p-4">
-                <h2 className="text-base font-semibold text-gray-900">Game over</h2>
-                <p className="mt-2 text-sm text-gray-900">Final score: {state.score}</p>
-              </div>
+              <SessionReport
+                history={state.history}
+                auditTargets={currentLevel.auditTargets}
+                score={state.score}
+                onRestart={handleRestart}
+                restartRef={restartRef}
+              />
             )}
           </div>
         )}
