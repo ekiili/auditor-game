@@ -8,7 +8,7 @@ import ReviewMarks, { MARK_SCOPE_ATTRIBUTE } from './components/ReviewMarks.jsx'
 import RulePicker from './components/RulePicker.jsx'
 import SelectionOverlay from './components/SelectionOverlay.jsx'
 import TargetList from './components/TargetList.jsx'
-import { inspectElement, inspectFocus } from './engine/readout.js'
+import { inspectElement, inspectFocus, isTextEntry } from './engine/readout.js'
 import { deriveMarks } from './engine/review.js'
 import { selectViolations } from './engine/saboteurEngine.js'
 import { levels } from './levels/index.js'
@@ -96,8 +96,17 @@ function App() {
   // with `focusVisible: true`, so a clicked element reads exactly as a
   // tabbed-to one. Focus is not removed from anything — it is applied a moment
   // later, deliberately, which is the opposite of taking it away.
+  //
+  // Controls that accept typed text are exempt. The browser's default mousedown
+  // handling places the text caret as well as moving focus, so suppressing it
+  // pins the caret to the end of the value wherever the player clicked. There
+  // is nothing to buy back: an element that takes keyboard input matches
+  // `:focus-visible` however focus arrives, so its reading is the same either
+  // way. The exemption is a property of the element, not a target id — a level
+  // with a second field must not need this line edited.
   const handleCanvasMouseDownCapture = (event) => {
     if (!state.auditMode) return
+    if (isTextEntry(event.target)) return
 
     event.preventDefault()
   }

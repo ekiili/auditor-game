@@ -89,6 +89,50 @@ export function isKeyboardFocusable(readout) {
   return NATIVELY_FOCUSABLE_TAGS.includes(readout.tagName)
 }
 
+// Input types that render a control rather than a text field. Stated as the
+// exceptions rather than as a list of the text types on purpose: `type` is
+// normalised by the DOM, so an input with no type or an unrecognised one
+// reports `text`, and the next type HTML gains will almost certainly be a text
+// one. A list of text types would silently misclassify it; this list does not.
+//
+// `number` is deliberately absent. It renders a text field with a caret in it,
+// which is the only property this predicate is about.
+const NON_TEXT_INPUT_TYPES = [
+  'button',
+  'checkbox',
+  'color',
+  'file',
+  'hidden',
+  'image',
+  'radio',
+  'range',
+  'reset',
+  'submit',
+]
+
+/**
+ * Whether the element accepts typed text — that is, whether it puts a caret on
+ * screen that the pointer is expected to position.
+ *
+ * A property of the element, never of any particular level's target ids: a
+ * rule written around one field would be wrong the first time a level carries
+ * a second one.
+ *
+ * This reads a live element rather than a Readout object, because its one
+ * caller runs during a `mousedown` and no readout exists at that moment. It
+ * touches nothing and moves nothing.
+ */
+export function isTextEntry(element) {
+  if (!element) return false
+  if (element.isContentEditable) return true
+
+  const tagName = element.tagName.toLowerCase()
+  if (tagName === 'textarea') return true
+  if (tagName !== 'input') return false
+
+  return !NON_TEXT_INPUT_TYPES.includes(element.type)
+}
+
 export function inspectFocus(element) {
   const style = getComputedStyle(element)
   const outlineStyle = style.outlineStyle
