@@ -76,6 +76,34 @@ function App() {
     )
   }, [])
 
+  // Selecting an element performs the keyboard test on it: focus really moves,
+  // so what the Inspector then reports is what a player pressing Tab would see.
+  //
+  // `focusVisible: true` is load-bearing and must not be dropped. Without it
+  // the browser withholds the state it uses to decide whether to draw an
+  // indicator, and a compliant element reports as failing. Called inside the
+  // event dispatch, never deferred out of it — deferring was measured and
+  // fails the same way the plain call does.
+  //
+  // An element that cannot take focus swallows this harmlessly: focus stays
+  // where it was, and the Inspector says the criterion has nothing to report.
+  const focusTarget = (targetId) => {
+    const element = canvasRef.current?.querySelector(`[data-audit-target="${targetId}"]`)
+    element?.focus({ focusVisible: true })
+  }
+
+  // The browser focuses a control on mousedown, before any click handler runs,
+  // and marks that focus as pointer-driven so no focus-visible state applies.
+  // Suppressing the default leaves the click handler free to move focus itself
+  // with `focusVisible: true`, so a clicked element reads exactly as a
+  // tabbed-to one. Focus is not removed from anything — it is applied a moment
+  // later, deliberately, which is the opposite of taking it away.
+  const handleCanvasMouseDownCapture = (event) => {
+    if (!state.auditMode) return
+
+    event.preventDefault()
+  }
+
   // Capture phase: a bubble-phase handler would run after the card's own
   // onClick, letting the stepper change its value on a click meant to select.
   const handleCanvasClickCapture = (event) => {
@@ -86,7 +114,14 @@ function App() {
     event.preventDefault()
     event.stopPropagation()
 
-    if (element) dispatch(selectTarget(element.dataset.auditTarget))
+    if (element) {
+      // Focus first: the focusin it raises records the reading while the
+      // element actually holds focus, which is the only moment its focus
+      // styles are evidence of anything. The dispatch below then covers the
+      // elements that cannot take focus and raise nothing.
+      focusTarget(element.dataset.auditTarget)
+      dispatch(selectTarget(element.dataset.auditTarget))
+    }
   }
 
   // Activation is suppressed; focus is not. Tab still moves through the card,
@@ -265,6 +300,7 @@ function App() {
             ref={canvasRef}
             className={cardWrapperClasses}
             {...markScope}
+            onMouseDownCapture={handleCanvasMouseDownCapture}
             onClickCapture={handleCanvasClickCapture}
             onKeyDownCapture={handleCanvasKeyDownCapture}
             onFocus={handleCanvasFocus}
@@ -288,10 +324,15 @@ function App() {
                 result is read, and the column is its to fill. */}
             {state.status === 'auditing' && (
               <>
+                {/* Both selection routes move focus, so the reading the panel
+                    shows never depends on how the player got there. */}
                 <TargetList
                   auditTargets={currentLevel.auditTargets}
                   selectedTarget={state.selectedTarget}
-                  onSelect={(targetId) => dispatch(selectTarget(targetId))}
+                  onSelect={(targetId) => {
+                    focusTarget(targetId)
+                    dispatch(selectTarget(targetId))
+                  }}
                 />
 
                 <ReadoutPanel targetId={state.selectedTarget} containerRef={canvasRef} />

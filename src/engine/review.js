@@ -23,14 +23,22 @@ export const OUTCOMES = Object.freeze({
 export const LINE_STYLES = Object.freeze({
   MISSED: 'dashed',
   FLAGGED_IN_ERROR: 'dotted',
-  CAUGHT: 'double',
-  CAUGHT_SMALL: 'solid',
+  CAUGHT: 'solid',
 })
 
-// A double line stops reading as two lines once the element is smaller than
-// this. The number coincides with 2.5.8's minimum target size, but the reason
-// is legibility, not that criterion.
-export const DOUBLE_LINE_MIN_SIZE = 24
+// Caught is one solid line at double weight, not a two-stroke `double` line.
+// Two strokes with a gap between them stop reading as a line at all on a small
+// target, so the weight carries the emphasis and the stroke stays single.
+export const MARK_WEIGHTS = Object.freeze({
+  NORMAL: 'normal',
+  HEAVY: 'heavy',
+})
+
+// Below this the doubled weight overwhelms the element it surrounds, so the
+// caught mark falls back to the normal weight — still solid, so the outcome's
+// line style survives the fallback. The number coincides with 2.5.8's minimum
+// target size, but the reason is legibility, not that criterion.
+export const HEAVY_MARK_MIN_SIZE = 24
 
 /**
  * Element-level precedence: an unresolved violation outranks everything else,
@@ -51,22 +59,28 @@ export function deriveOutcomes(result) {
   return outcomes
 }
 
+/** Line style depends on the outcome alone; size only ever moves the weight. */
+export function lineStyleFor(outcome) {
+  if (outcome === OUTCOMES.MISSED) return LINE_STYLES.MISSED
+  if (outcome === OUTCOMES.FLAGGED_IN_ERROR) return LINE_STYLES.FLAGGED_IN_ERROR
+  return LINE_STYLES.CAUGHT
+}
+
 /**
- * The double-to-solid fallback is decided from the dimensions the Round
+ * The heavy-to-normal fallback is decided from the dimensions the Round
  * snapshot already holds. Nothing is measured at review time — the card the
  * player audited is the card being described, and re-measuring it would
  * describe whatever the review happens to render instead.
  */
-export function lineStyleFor(outcome, readout) {
-  if (outcome === OUTCOMES.MISSED) return LINE_STYLES.MISSED
-  if (outcome === OUTCOMES.FLAGGED_IN_ERROR) return LINE_STYLES.FLAGGED_IN_ERROR
+export function markWeightFor(outcome, readout) {
+  if (outcome !== OUTCOMES.CAUGHT) return MARK_WEIGHTS.NORMAL
 
-  // No readout is not an occasion to guess large: solid reads correctly at
-  // every size, double does not.
-  if (!readout) return LINE_STYLES.CAUGHT_SMALL
+  // No readout is not an occasion to guess large: the normal weight reads
+  // correctly at every size, the doubled one does not.
+  if (!readout) return MARK_WEIGHTS.NORMAL
 
   const smallerSide = Math.min(readout.width, readout.height)
-  return smallerSide < DOUBLE_LINE_MIN_SIZE ? LINE_STYLES.CAUGHT_SMALL : LINE_STYLES.CAUGHT
+  return smallerSide < HEAVY_MARK_MIN_SIZE ? MARK_WEIGHTS.NORMAL : MARK_WEIGHTS.HEAVY
 }
 
 // Which reading answers a finding. The findings list turns these into
@@ -115,8 +129,8 @@ export function deriveEvidence(ruleId, readout, focusReadout) {
 }
 
 /**
- * `{ [auditTargetId]: { outcome, lineStyle } }`, holding an entry only for
- * elements that carry an outcome. An element with none receives no mark.
+ * `{ [auditTargetId]: { outcome, lineStyle, weight } }`, holding an entry only
+ * for elements that carry an outcome. An element with none receives no mark.
  */
 export function deriveMarks(result, snapshot) {
   const outcomes = deriveOutcomes(result)
@@ -124,7 +138,11 @@ export function deriveMarks(result, snapshot) {
 
   for (const [target, outcome] of Object.entries(outcomes)) {
     const readout = snapshot && snapshot.elements ? snapshot.elements[target] : null
-    marks[target] = { outcome, lineStyle: lineStyleFor(outcome, readout) }
+    marks[target] = {
+      outcome,
+      lineStyle: lineStyleFor(outcome),
+      weight: markWeightFor(outcome, readout),
+    }
   }
 
   return marks

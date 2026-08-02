@@ -50,8 +50,22 @@ function evidenceSentence(ruleId, readout, focusReadout) {
 // Selected state is a React conditional rather than a CSS variant, so the
 // selected-and-hovered combination is expressed by construction and no two
 // equal-specificity rules can race for the background.
+//
+// The highlight is carried by the wrapper around the whole finding, not by the
+// title control alone. A coloured bar across the top line and nothing beneath
+// it reads as a header for everything that follows — including the next
+// finding — which is the opposite of what selecting one finding means.
+//
+// `has-[button:hover]` rather than `hover` on the wrapper: the button is the
+// only thing here that can be activated, so it is the only thing whose hover
+// should preview what selecting will do. A plain `hover` on the wrapper would
+// light the block up when the pointer crossed a paragraph.
+const FINDING_BASE = 'rounded-md p-1'
+
+// The title outranks its explanation at every moment, selected or not, so the
+// weight lives here rather than in either state's classes.
 const ENTRY_BASE =
-  'flex min-h-11 w-full items-center rounded-md px-3 py-2 text-left text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2'
+  'flex min-h-11 w-full items-center rounded-md bg-transparent px-3 py-2 text-left text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2'
 
 const SECTIONS = [
   {
@@ -61,9 +75,11 @@ const SECTIONS = [
     carriesEvidence: false,
     panel: 'rounded-lg border border-red-700 bg-red-50 p-4',
     headingClasses: 'text-base font-semibold text-red-900',
-    bodyClasses: 'text-red-900',
-    entryRest: 'text-red-900 hover:bg-red-100 focus-visible:outline-red-800',
-    entrySelected: 'bg-red-800 text-white hover:bg-red-900 focus-visible:outline-red-900',
+    divider: 'border-red-200',
+    findingRest: 'text-red-900 has-[button:hover]:bg-red-100',
+    findingSelected: 'bg-red-800 text-white has-[button:hover]:bg-red-900',
+    entryRest: 'focus-visible:outline-red-800',
+    entrySelected: 'focus-visible:outline-white',
   },
   {
     outcome: OUTCOMES.FLAGGED_IN_ERROR,
@@ -74,9 +90,11 @@ const SECTIONS = [
     carriesEvidence: true,
     panel: 'rounded-lg border border-amber-700 bg-amber-50 p-4',
     headingClasses: 'text-base font-semibold text-amber-900',
-    bodyClasses: 'text-amber-900',
-    entryRest: 'text-amber-900 hover:bg-amber-100 focus-visible:outline-amber-800',
-    entrySelected: 'bg-amber-800 text-white hover:bg-amber-900 focus-visible:outline-amber-900',
+    divider: 'border-amber-200',
+    findingRest: 'text-amber-900 has-[button:hover]:bg-amber-100',
+    findingSelected: 'bg-amber-800 text-white has-[button:hover]:bg-amber-900',
+    entryRest: 'focus-visible:outline-amber-800',
+    entrySelected: 'focus-visible:outline-white',
   },
   {
     outcome: OUTCOMES.CAUGHT,
@@ -85,10 +103,11 @@ const SECTIONS = [
     carriesEvidence: false,
     panel: 'rounded-lg border border-emerald-700 bg-emerald-50 p-4',
     headingClasses: 'text-base font-semibold text-emerald-900',
-    bodyClasses: 'text-emerald-900',
-    entryRest: 'text-emerald-900 hover:bg-emerald-100 focus-visible:outline-emerald-800',
-    entrySelected:
-      'bg-emerald-800 text-white hover:bg-emerald-900 focus-visible:outline-emerald-900',
+    divider: 'border-emerald-200',
+    findingRest: 'text-emerald-900 has-[button:hover]:bg-emerald-100',
+    findingSelected: 'bg-emerald-800 text-white has-[button:hover]:bg-emerald-900',
+    entryRest: 'focus-visible:outline-emerald-800',
+    entrySelected: 'focus-visible:outline-white',
   },
 ]
 
@@ -112,8 +131,12 @@ function Section({ section, findings, auditTargets, snapshot, selectedTarget, on
         {section.heading}
       </h2>
 
-      <ul className="mt-2 flex flex-col gap-3">
-        {findings.map((finding) => {
+      {/* Spacing and a hairline rule, not a border per finding: a bordered box
+          inside a bordered panel reads as a card and competes with the panel
+          for the eye. The divider belongs to the gap between two findings, so
+          it sits outside the highlight rather than inside it. */}
+      <ul className="mt-2 flex flex-col">
+        {findings.map((finding, index) => {
           const isSelected = finding.target === selectedTarget
           const rule = ruleFor(finding.ruleId)
           // Both sides of the snapshot, for this element only. `null` is a
@@ -125,26 +148,32 @@ function Section({ section, findings, auditTargets, snapshot, selectedTarget, on
             : null
 
           return (
-            <li key={`${finding.ruleId}::${finding.target}`}>
-              {/* The summary and the reading sit outside the control, so the
-                  button's accessible name stays the element and the rule
-                  rather than a paragraph of explanation. */}
-              <button
-                type="button"
-                aria-current={isSelected ? 'true' : undefined}
-                onClick={() => onSelect(finding.target)}
-                className={`${ENTRY_BASE} ${isSelected ? section.entrySelected : section.entryRest}`}
+            <li
+              key={`${finding.ruleId}::${finding.target}`}
+              className={index === 0 ? undefined : `mt-3 border-t pt-3 ${section.divider}`}
+            >
+              <div
+                className={`${FINDING_BASE} ${isSelected ? section.findingSelected : section.findingRest}`}
               >
-                {labelForTarget(auditTargets, finding.target)} — {rule ? rule.shortLabel : finding.ruleId}
-              </button>
+                {/* The summary and the reading sit outside the control, so the
+                    button's accessible name stays the element and the rule
+                    rather than a paragraph of explanation. Colour is inherited
+                    from the wrapper, so the selected state cannot end up half
+                    applied. */}
+                <button
+                  type="button"
+                  aria-current={isSelected ? 'true' : undefined}
+                  onClick={() => onSelect(finding.target)}
+                  className={`${ENTRY_BASE} ${isSelected ? section.entrySelected : section.entryRest}`}
+                >
+                  {labelForTarget(auditTargets, finding.target)} —{' '}
+                  {rule ? rule.shortLabel : finding.ruleId}
+                </button>
 
-              {rule && (
-                <p className={`mt-1 px-3 text-sm ${section.bodyClasses}`}>{rule.description}</p>
-              )}
+                {rule && <p className="mt-1 px-3 text-sm">{rule.description}</p>}
 
-              {evidence && (
-                <p className={`mt-1 px-3 text-sm font-medium ${section.bodyClasses}`}>{evidence}</p>
-              )}
+                {evidence && <p className="mt-1 px-3 text-sm font-medium">{evidence}</p>}
+              </div>
             </li>
           )
         })}
