@@ -141,7 +141,7 @@ function TopStrip({ levelName, round, totalRounds, score, onRestart }) {
         <span className="block">
           Round {round} of {totalRounds}
         </span>
-        <span className="block font-semibold">Score {formatScore(score)}</span>
+        <span className="block font-semibold">Score: {formatScore(score)}</span>
       </div>
 
       <div className="flex shrink-0 items-center gap-3">
