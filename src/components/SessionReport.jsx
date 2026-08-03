@@ -95,7 +95,7 @@ function SessionReport({ history, auditTargets, score, onRestart, restartRef }) 
         className="rounded-lg border border-gray-300 bg-white p-4"
       >
         <h2 id={titleId} className="text-base font-semibold text-gray-900">
-          Session complete
+          Run complete
         </h2>
 
         <p className="mt-2 text-sm text-gray-700">
@@ -165,7 +165,7 @@ function SessionReport({ history, auditTargets, score, onRestart, restartRef }) 
         </ul>
 
         <p id={totalId} className="mt-4 border-t border-gray-200 pt-3 text-sm text-gray-900">
-          <span className="font-semibold">Session total: {formatScore(score)}</span>
+          <span className="font-semibold">Run total: {formatScore(score)}</span>
         </p>
       </section>
 

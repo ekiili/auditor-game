@@ -33,7 +33,7 @@ const [currentLevel] = levels
 // Keyed by `status`; an absent key means the control is available.
 const TOGGLE_UNAVAILABLE_REASONS = {
   reviewing: 'Not available while you review this round.',
-  gameOver: 'Not available once the session is over.',
+  gameOver: 'Not available once the run is over.',
 }
 
 const BUTTON_CLASSES =
@@ -46,9 +46,9 @@ const BUTTON_CLASSES =
 // panels remain direct children of the wrapper's own flex column.
 //
 // The widths are fixed rather than fluid, and that is the whole point. The
-// card's column takes what is left over, so it can only change width if one of
-// these does — and neither responds to its contents. An Inspector that grows
-// scrolls inside 24rem; it never widens, and the card never moves.
+// card's column is sized from what these leave, so it can only change width if
+// one of them does — and neither responds to its contents. An Inspector that
+// grows scrolls inside 24rem; it never widens, and the card never moves.
 //
 //   14rem   target list — the longest label at text-sm plus its padding
 //   24rem   Inspector column — the width the single tools column always had
@@ -61,9 +61,20 @@ const BUTTON_CLASSES =
 const TOOLS_WRAPPER_CLASSES =
   'relative flex w-full min-h-0 max-w-sm flex-1 flex-col gap-6 overflow-y-auto lg:w-158 lg:max-w-none lg:flex-none lg:flex-row lg:overflow-visible'
 
-// The end-of-session report has no card beside it, so it takes the whole row.
+// The end-of-run report has no card beside it. It used to answer that by
+// taking the whole row, which made a 2560px screen a 2512px surface with one
+// narrow column of round rows down the left of it — the rows read as fragments
+// strung across a plain rather than as a list.
+//
+// So it takes the width the tools region holds in every other status, 39.5rem,
+// and the row's justify-center puts it in the middle. That number is not
+// borrowed for the sake of matching: the findings list is where a result has
+// been read all run, and the report is the last of those readings, so it lands
+// in the same column the player has been reading results in. It also happens to
+// suit the content — the longest line the report can print is a finding's
+// element-and-rule pair, which sits well inside it.
 const REPORT_WRAPPER_CLASSES =
-  'relative flex w-full min-h-0 max-w-sm flex-1 flex-col gap-6 overflow-y-auto lg:max-w-none'
+  'relative flex w-full min-h-0 max-w-sm flex-1 flex-col gap-6 overflow-y-auto lg:w-158 lg:max-w-none lg:flex-none'
 
 // `relative` on each sub-column for the reason the outer columns carry it: the
 // visually hidden radios in the target list and the rule picker are
@@ -376,10 +387,41 @@ function App() {
         <div className="flex w-full min-h-0 flex-1 flex-col items-center gap-6 lg:flex-row lg:items-stretch lg:justify-center">
           {/* Scrolling lives on this column, never on the sizing-only wrapper
               below: a safety valve for viewports too short for the card, which
-              scrolls rather than clipping it. From lg up the column takes
-              whatever the two fixed-width tools columns leave, and centres the
-              card in it — the card's own max-width, not the column's, is what
-              decides how wide it renders.
+              scrolls rather than clipping it. The card is centred in the column
+              — the card's own max-width, not the column's, is what decides how
+              wide it renders.
+
+              From lg up the column is capped at 28rem rather than taking every
+              pixel the tools columns leave. Uncapped, it swallowed all the slack
+              on a wide screen and the three regions stopped being a group: the
+              tools sat against the right edge and the card floated in the middle
+              of everything left over, so a 2560px window put 736px of nothing to
+              the left of the card and another 760px between it and the targets
+              list. Capping the column lets the row's justify-center do its job —
+              the leftover splits evenly outside the group instead of pooling
+              inside it.
+
+              It is a max-width, not a width, and that is deliberate: at the
+              bottom of the lg range the group is wider than the viewport, and a
+              fixed width would overflow it into a horizontal scrollbar. Capped,
+              the column simply shrinks as it always did, so nothing between
+              1024px and 1088px changes.
+
+              The card's own left edge is unmoved by any of this. Centring the
+              card inside a centred group cancels the cap out — the card sits at
+              (viewport − tools − card)/2 whatever this number is, so the cap
+              chooses one thing only: how much air separates the card from the
+              targets list, which is (28rem − 24rem)/2 plus the 1.5rem row gap,
+              or 56px.
+
+              28rem rather than something roomier because of what happens at the
+              narrow end of this layout. The space inside a group has to stay
+              smaller than the space around it, or the group stops reading as
+              one. At 1280px this cap leaves 88px outside the group against 56px
+              within it. At 32rem the two swap places — 56px outside, 88px within
+              — and the card starts to look detached from the tools rather than
+              grouped with them. Wider screens are indifferent; 1280px decides
+              it.
 
               `relative` is load-bearing, not decoration. The sr-only live region
               inside the stepper is position:absolute; without a positioned
@@ -388,7 +430,7 @@ function App() {
               It does not affect the overlay, which is position:fixed — only
               transform/filter/contain would capture that, and none is used. */}
           {!isGameOver && (
-            <div className="relative w-full min-h-0 max-w-sm flex-1 overflow-y-auto lg:flex lg:max-w-none lg:flex-col lg:items-center">
+            <div className="relative w-full min-h-0 max-w-sm flex-1 overflow-y-auto lg:flex lg:max-w-md lg:flex-col lg:items-center">
               <div
                 ref={canvasRef}
                 className={cardWrapperClasses}
