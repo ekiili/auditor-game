@@ -3,7 +3,7 @@ rem Double-click to build the production bundle and serve it, then open the
 rem game in a browser at the base path.
 rem
 rem This is the artifact that gets deployed, served the way GitHub Pages will
-rem serve it: under /audit-game/. Vite preview reads that base from
+rem serve it: under /auditor-game/. Vite preview reads that base from
 rem vite.config.js, so `--open` opens the base path rather than the server
 rem root, where nothing is served.
 rem
