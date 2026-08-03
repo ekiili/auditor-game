@@ -1,4 +1,4 @@
-> **CLAUDE.md — v19 (2026-08-03)**
+> **CLAUDE.md — v20 (2026-08-03)**
 > This file is maintained by the Planner. Do not edit, append to, or
 > reorganize it. If you find it incomplete, ambiguous, or contradicted by
 > your task prompt, do not resolve the conflict yourself — report the
@@ -6,17 +6,19 @@
 > If a copy of this file appears in your session context, ignore it and read
 > the file on disk. The injected copy has been stale before.
 
-# Audit Game — Developer Instructions
+# Auditor — Developer Instructions
 
 ## Project Overview
 
-You are building **Audit Game**, a purely client-side React SPA (Vite + Tailwind CSS). It is an accessibility training game: a perfect WCAG 2.2 AA baseline component is deliberately "sabotaged" with accessibility violations, and the player must find them.
+You are building **Auditor**, a purely client-side React SPA (Vite + Tailwind CSS). It is an accessibility training game: a perfect WCAG 2.2 AA baseline component is deliberately "sabotaged" with accessibility violations, and the player must find them.
 
 Target standard: **WCAG 2.2 Level AA** (the European Accessibility Act baseline).
 
 Phase 1 covers a single level — an E-commerce Checkout Card — and four violations. The architecture assumes more levels will follow.
 
 The full product specification is at `docs/prd.md`. Where the PRD and this file disagree, this file wins.
+
+The project was called Audit Game until 2026-08-03. Older commits, `docs/decisions.md` entries and the PRD may still use that name; that is history, not a discrepancy to report. Anything player-facing says Auditor.
 
 ## Core Tech Stack
 
@@ -25,13 +27,24 @@ The full product specification is at `docs/prd.md`. Where the PRD and this file 
 * **Tailwind CSS v4**, CSS-first configuration. There is no `tailwind.config.js`; v4 auto-detects sources. Theme customization, if ever needed, goes in an `@theme` block in `src/index.css`.
 * **`lucide-react`** — local SVG icons
 * **`dom-accessibility-api`** — spec-correct accessible name computation for the Inspector (approved 2026-07-29)
+* **Fredoka**, weight 700, latin subset — committed to the repo at `src/assets/fonts/`, used for the wordmark only. See **The committed font** below.
 * **oxlint** — the linter in this repo. It is not ESLint; rule names differ. Enabled plugins are `react` and `oxc`; `jsx-a11y` is not enabled.
 
 Build machinery pulled in by the above — `@vitejs/plugin-react`, `postcss`, `@tailwindcss/postcss`, `autoprefixer` — is expected and not a deviation.
 
-**Tailwind v4 emits only the theme variables its own utilities use.** A palette colour referenced from anywhere Tailwind does not itself compile — hand-written CSS, a generated `<style>` element — resolves to nothing, silently, with no build error and no console warning. Any palette value needed outside a utility class must be pinned explicitly in `src/index.css`. This has already cost one debugging cycle.
+**Tailwind v4 emits only the theme variables its own utilities use.** A palette colour referenced from anywhere Tailwind does not itself compile — hand-written CSS, a generated `<style>` element — resolves to nothing, silently, with no build error and no console warning. Any palette value needed outside a utility class must be pinned explicitly in `src/index.css`. This has already cost one debugging cycle, and the wordmark's outline colour is one of the values it applies to.
 
 Do not add dependencies beyond these without asking.
+
+### The committed font
+
+The font file and its SIL Open Font License are committed at `src/assets/fonts/`. Nothing is ever fetched from Google Fonts or any other host — see Guardrail 1.
+
+**The `@font-face` declaration lives in `src/index.css`, with its `url()` relative to that file.** This is not a stylistic choice. A declaration placed in a stylesheet beside the font and pulled in with a plain `@import` builds without error and produces a broken page: Vite rebases `url()` against the stylesheet it is compiling, does not follow the `@import` when doing so, emits no asset, and the runtime request 404s. The build's only warning describes the path as resolving at runtime, which it does not.
+
+**`font-display: swap`.** The wordmark is text and must never be invisible, which rules out `block`; it must always end up in Fredoka, which rules out `optional`, where the browser may abandon the face for the life of the page. The brief flash of the fallback on a cold cache costs nothing here: the fallback measures within half a pixel of Fredoka at the size used, and the level name is centred against the strip rather than against the wordmark, so nothing moves when the swap lands.
+
+**Do not inline the font as a data URI.** It was inlined once, in response to a task prompt that over-stated Guardrail 1, and the arrangement cost separate caching and added a regeneration step. A same-origin request for a file the repo ships is not a guardrail violation.
 
 ---
 
@@ -90,6 +103,8 @@ Each level is a self-contained directory exporting one object from its `index.js
 
 `src/levels/index.js` is a registry array. Nothing imports a level by name; consumers iterate the registry.
 
+**A level's `name` is displayed in the top strip and is capped in width there.** A long name truncates rather than colliding with the strip's other contents. Keep new level names short enough to read whole.
+
 ### File Structure
 
 ```
@@ -101,8 +116,11 @@ docs/
 src/
 ├─ main.jsx
 ├─ App.jsx
-├─ index.css
+├─ index.css                       includes the @font-face declaration
+├─ assets/
+│  └─ fonts/                       committed .woff2 and its OFL licence
 ├─ components/                     shared, level-agnostic UI
+│  ├─ TopStrip.jsx
 │  ├─ AuditModeToggle.jsx
 │  ├─ TargetList.jsx
 │  ├─ SelectionOverlay.jsx
@@ -132,7 +150,7 @@ src/
       └─ assets/
 ```
 
-Some of these do not exist yet. Build only what your current task specifies.
+The strip's own panels may live in files of their own alongside `TopStrip.jsx`; if the tree above is incomplete, report it rather than reorganizing the code to match.
 
 `src/components/` is for UI shared across all levels. Level-specific components never go there.
 
@@ -196,7 +214,7 @@ The single object exported from `src/levels/<level>/index.js`:
 ```
 
 * `id` — string, unique across the registry, matching the level's directory name.
-* `name` — string, human-readable level name.
+* `name` — string, human-readable level name. Displayed in the top strip.
 * `Component` — the React component. Renders a fully compliant baseline when given no props.
 * `auditTargets` — array. Every element the player can point at, including ones that are never broken.
 * `sabotageMap` — array. The (rule, target) pairs this level can break.
@@ -349,7 +367,7 @@ Payload shapes are recorded here as literal shapes, not by reference to each oth
 | `removeGuess(guess)` | `guess` — a whole **Guess entry** |
 | `toggleAuditMode()` | none — the action is `{ type: 'toggleAuditMode' }` and carries no `payload` key at all |
 
-`restartSession` returns the session to its opening state — round 1, score 0, empty `history`, `status` back to `'auditing'` — with the payload's violations as the new round's Truth. Like `startRound` and `nextRound`, it receives Truth rather than generating it. It is dispatched only from `'gameOver'`.
+`restartSession` returns the session to its opening state — round 1, score 0, empty `history`, `status` back to `'auditing'`, Audit Mode off — with the payload's violations as the new round's Truth, and `levelId` preserved. Like `startRound` and `nextRound`, it receives Truth rather than generating it. **It is dispatched from any status**, not only `'gameOver'`; the reducer has never guarded on status, so only the UI routes into it ever needed adding.
 
 **Three payload forms exist and none is being migrated.** A payload carrying more than one value — or one value that may plausibly need a companion later — is an **object with named keys**. A payload carrying a single identifier or a single whole contract shape is that **value, bare**. An action that needs no data omits the `payload` key entirely rather than setting it to `null` or `undefined`.
 
@@ -446,11 +464,13 @@ None currently.
 
 ## STRICT GUARDRAILS (NEVER VIOLATE THESE)
 
-**1. No External APIs.**
-The app must be 100% playable completely offline. No CDNs, no remote fonts, no image URLs, no analytics, no network calls of any kind. Use `lucide-react` for icons and locally committed assets for images. Never `placeholder.com`, `picsum.photos`, or similar.
+**1. Nothing Is Fetched From Outside The Project.**
+The app must be 100% playable completely offline. No CDNs, no remote fonts, no image URLs, no analytics, no cross-origin requests of any kind. Use `lucide-react` for icons, locally committed assets for images, and the committed font file for the wordmark. Never `placeholder.com`, `picsum.photos`, Google Fonts, or similar.
+
+**Same-origin requests for files the repo ships are not a violation.** The build emitting a font, a stylesheet or an image and the page requesting it back is ordinary behaviour. A task prompt demanding literally zero requests is over-stating this guardrail — report the over-statement rather than contorting the build to satisfy it.
 
 **2. Client-Side Only.**
-No backend, no database, no authentication, no SSR, no Next.js server components, no serverless functions. Build output is plain static files deployable to GitHub Pages with zero backend. `vite.config.js` sets `base: '/audit-game/'` to match the repo name — do not remove it.
+No backend, no database, no authentication, no SSR, no Next.js server components, no serverless functions. Build output is plain static files deployable to GitHub Pages with zero backend. `vite.config.js` sets `base: '/audit-game/'` to match the repo name — do not remove it. The repo name still reflects the old project name; the base path is not a discrepancy.
 
 **3. No Persistence of Any Kind.**
 State lives in React memory only. No `localStorage`, `sessionStorage`, `IndexedDB`, or cookies. A page refresh resets the session — this is intended, not a bug to fix.
@@ -484,17 +504,19 @@ Do not build ahead. If asked to build a button, build only that button. Do not i
 
 ## Accessibility Standards
 
-**Scope:** the game's own chrome — HUD, Inspector, buttons, submit confirmation, review marks, findings list and end-of-session report — is **always** fully WCAG 2.2 AA compliant. Only the level component inside the canvas is ever degraded, and only through variant props.
+**Scope:** the game's own chrome — the top strip, HUD, Inspector, buttons, submit confirmation, review marks, findings list and end-of-session report — is **always** fully WCAG 2.2 AA compliant. Only the level component inside the canvas is ever degraded, and only through variant props.
 
 All baseline code must strictly adhere to WCAG 2.2 AA:
 
 * Semantic HTML (`<button>`, `<input>`, `<label>`, correct heading levels — never a clickable `<div>`).
 * Visible, high-contrast focus indicators on every interactive element, via explicit Tailwind `focus-visible:` utilities. Never rely on browser defaults; never emit `outline: none` without a visible replacement.
 * Accessible names for all icon-only buttons.
-* Text contrast at least 4.5:1 — **in every interactive state and every combination of them**: rest, hover, selected, selected-and-hovered, and focus-visible. Foreground and background are set together or not at all, and this fails in both directions: a hover background arriving underneath a selected state's white text is the same bug as a hover text colour arriving over a resting background. Where two state variants carry equal specificity, source order decides which wins, so a combined state needs a variant of its own rather than relying on either half. Fix these by expressing the combination, never with `!important` or an invented specificity bump.
-* Interactive targets at least 24×24 CSS pixels; 44×44 preferred. Pad the control — don't just resize the glyph.
+* Text contrast at least 4.5:1 — **in every interactive state and every combination of them**: rest, hover, selected, selected-and-hovered, expanded, expanded-and-hovered, and focus-visible. Foreground and background are set together or not at all, and this fails in both directions: a hover background arriving underneath a selected state's white text is the same bug as a hover text colour arriving over a resting background. Where two state variants carry equal specificity, source order decides which wins, so a combined state needs a variant of its own rather than relying on either half. Fix these by expressing the combination, never with `!important` or an invented specificity bump.
+* Interactive targets at least 24×24 CSS pixels; 44×44 preferred, and 44×44 is what the chrome's controls actually use. Pad the control — don't just resize the glyph.
 * `useId()` for all form element ids. Hardcoded ids break label association when a component renders twice.
 * Complete Tailwind class strings in lookup maps. Tailwind scans source text, so `` `h-${size}` `` generates no CSS.
+
+**The wordmark is the one exception, and it is exempt rather than excused.** Its white fill sits on a white strip at 1:1, which the standard permits because a logotype is not held to the text contrast requirement. What carries the letterforms is the outline, measured at 8.09:1. Nothing else in the chrome may borrow this exemption.
 
 `jsx-a11y` is not enabled in this repo's linter, so none of the above is machine-checked. It is verified by reading and by behavioural testing only.
 
@@ -533,13 +555,22 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
   * **On an element that can never receive focus, the Inspector says so.** `product-image` is an `<img>` and is not focusable in any engine. The panel states that rather than showing an empty reading: a stated reason teaches that not everything is meant to be focusable, while silence teaches nothing.
   * Real Safari on macOS and iOS is untested and that gap is accepted. The WebKit engine result stands in for it.
 * **Element-fact predicates live in `readout.js`** — currently `isKeyboardFocusable` and `isTextEntry`. Both the Inspector and the review need the same facts, and the Inspector must not import from the review phase, which would point the dependency backwards. `isTextEntry` takes a live element rather than a Readout object, because its caller runs during a `mousedown` when no readout exists yet. It is written as a deny-list of non-text input types rather than an allow-list of text ones: the DOM normalises unknown and absent types to `text`, so an allow-list would silently misclassify any input type HTML gains in future, and a deny-list will not.
-* **Audit Mode off means no visible game.** Before Audit Mode is enabled the page looks like an ordinary website — no Inspector, no overlays, no annotations over the card. The target list, overlay, readout panel, rule picker and guess log are absent from the DOM, not hidden.
-* **The wide layout is three regions side by side: the card, the audit target list, and everything else.** At `lg` and above the tools do not share one column. The target list stands alone; the Inspector, rule picker, guess log, Submit control and submit confirmation occupy a second. Selecting a target and reading what the Inspector reports about it is the game's core act, and in a single scrolling column that act meant scrolling between the two. A third tools column was considered and rejected as the larger change.
-  * **The card is centred horizontally in its own column, which is the only fluid region.** Both tools columns carry fixed widths, and the wrapper around them is pinned to their sum in every status. This is the mechanism upholding the constraint below, not a styling preference: the card's column can change width only if a tools column does, and neither responds to its contents. It also means the review — one column occupying the space two held — leaves the card exactly where the audit left it, at the moment the player is asked to compare the marks against what they just audited. A tools region that shrink-wrapped its own content would slide the card sideways there.
-  * **Below `lg` everything stacks in a single scrolling column, exactly as it did before the split.** This is a decision, not an omission: the game targets a reasonably wide window. The two sub-columns generate no boxes at that width, so the panels remain direct children of the same column and the narrow layout is unchanged rather than approximately preserved — which is also what keeps the `sr-only` helpers inside a positioned ancestor there. Do not introduce a narrow-screen split, a fixed-height tools region, or any other new treatment below `lg` without asking.
-* **The game never scrolls the page.** Every column is constrained to the viewport height and scrolls internally, within its own container. The audited component is visible at every moment of the round, because the game's core act is comparing what the element looks like against what the Inspector reports about it, and that comparison cannot survive a scroll. Two consequences are load-bearing and must survive any later refactor:
+* **Audit Mode off means no visible game.** Before Audit Mode is enabled the page below the strip looks like an ordinary website — no Inspector, no overlays, no annotations over the card. The target list, overlay, readout panel, rule picker and guess log are absent from the DOM, not hidden. The top strip is not covered by this: it sits outside the canvas and puts nothing over the card, so the audited component still presents itself untouched.
+* **A strip runs across the top of the screen in every status.** It carries, left to right: the Auditor wordmark, the level name, where the player is in the session with the running score, a "how to play" control, and Restart. It is the game's chrome, not the audited page's.
+  * **Its height is fixed, not derived from its contents.** Nothing in it — no score, level name, round number, wordmark or open panel — may deepen it. The columns below fill the viewport height minus the strip, and the game does not scroll, so a strip that grew with its contents would move the card.
+  * **The level name is centred against the strip's full width**, not against the space left between the wordmark and the controls, which would drift every time either of those changed size. At narrow widths this forces the session figures onto two lines so the centred name has room; the strip's fixed height already had the vertical room, so this costs nothing. A long level name truncates rather than colliding.
+  * **The strip's panels are positioned out of the layout flow**, anchored to the strip, and clipped by the root wrapper's existing overflow. They occupy no layout space, so opening one cannot move the card — which is the whole answer to that constraint, and is stronger than being careful about heights. They add no backdrop, no tint, no scroll lock, and block nothing. At narrow widths a panel may overlap part of the card; that is ordinary popover occlusion and the card does not move.
+  * **The page's single `h1` is the visible wordmark**, replacing the earlier visually hidden heading. Two elements both reading "Auditor" would announce it twice.
+  * **The wordmark is white text with a 6px outline at 36px, in Fredoka.** 6px was chosen deliberately, after the owner compared everything from 2px to 16px. It is past the point where the counters of the A, d and o stay open — they are solid at this weight, and the mark reads as purple lettering with a white seam rather than white lettering with a purple outline. That is the intended look. Thinner is hard to see; thicker produces an artifact inside the o. Do not adjust it as a tidy-up.
+* **Restart is available in every status, not only at game over.** A run is something a player can abandon: someone attempting a flawless run wants to start over the moment a round goes wrong, and making them play out the remaining rounds obstructs the thing the game teaches. It is guarded by an inline confirmation carrying the same hand-built obligations as the submit confirmation — focus moves in, Escape dismisses, cancel returns focus to the control that opened it.
+  * **Two restart controls exist at `'gameOver'` and that is deliberate.** The end-of-session report keeps its own. They carry different names — **Restart** in the strip, **Start a new run** on the report — so that a player listing the page's controls by name is not shown the same one twice.
+* **The "how to play" panel explains the game to someone who has never seen it.** It also closes on Escape and returns focus to its own control: a panel that visually covers other content and cannot be dismissed from the keyboard is a defect regardless of whether a task prompt asked for that behaviour.
+* **The game never scrolls the page.** Every column is constrained to the viewport height, less the strip, and scrolls internally within its own container. The audited component is visible at every moment of the round, because the game's core act is comparing what the element looks like against what the Inspector reports about it, and that comparison cannot survive a scroll. Two consequences are load-bearing and must survive any later refactor:
   * **Every scrolling column carries `position: relative`.** The `sr-only` helpers are `position: absolute` with no offsets, so without a positioned ancestor they resolve against the initial containing block, escape their column's `overflow`, and grow the document past the viewport — two 1px elements are enough to defeat the whole decision. Any new scroll container needs the same treatment. `position: relative` is safe here: it does not create a containing block for `position: fixed` and so cannot capture the selection overlay, where `transform`, `filter`, `perspective` and `contain` would.
   * **The selection overlay's capture-phase scroll listeners stay.** The card still moves when its own column scrolls on a short viewport, so the tracking is doing real work and is not redundant.
+* **The wide layout is three regions side by side: the card, the audit target list, and everything else.** At `lg` and above the tools do not share one column. The target list stands alone; the Inspector, rule picker, guess log, Submit control and submit confirmation occupy a second. Selecting a target and reading what the Inspector reports about it is the game's core act, and in a single scrolling column that act meant scrolling between the two. A third tools column was considered and rejected as the larger change.
+  * **The card is centred horizontally in its own column, which is the only fluid region.** Both tools columns carry fixed widths, and the wrapper around them is pinned to their sum in every status. This is the mechanism upholding the constraint above, not a styling preference: the card's column can change width only if a tools column does, and neither responds to its contents. It also means the review — one column occupying the space two held — leaves the card exactly where the audit left it, at the moment the player is asked to compare the marks against what they just audited. A tools region that shrink-wrapped its own content would slide the card sideways there.
+  * **Below `lg` everything stacks in a single scrolling column, exactly as it did before the split.** This is a decision, not an omission: the game targets a reasonably wide window. The two sub-columns generate no boxes at that width, so the panels remain direct children of the same column and the narrow layout is unchanged rather than approximately preserved — which is also what keeps the `sr-only` helpers inside a positioned ancestor there. Do not introduce a narrow-screen split, a fixed-height tools region, or any other new treatment below `lg` without asking.
 * **Interception is capture-phase**, on a sizing-only wrapper around the level component. A bubble-phase handler runs after the card's own handler has already fired. The wrapper adds no padding, margin, border, or transform — a transform would create a containing block and move the overlay.
 * **The Inspector reports facts, not verdicts.** It shows role, accessible name, dimensions, and focus styles in neutral styling. Empty values are never coloured, iconed, or flagged. The absence is the signal; noticing it is the skill.
 * **Element selection is list-primary.** The player selects from a list of the level's audit targets. Canvas clicking also works, via one delegated handler using `closest('[data-audit-target]')`, so the level component stays unaware the game exists.
@@ -571,7 +602,7 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
   * **One row per round, each expandable** to what was missed and what was wrongly flagged in that round. The detail is available without being imposed on a player who only wants the shape of their session.
   * **"Perfect!" means a flawless submission** — every violation present found, nothing flagged in error — and a correct empty submission on a clean round earns it too. Recognising a clean page is a real skill and is not treated as a lesser result.
   * **The session total sits at the bottom**, after the rounds rather than above them, so the report reads as an account of what happened before it reads as a verdict.
-  * **Restart returns to a fresh session** through `restartSession`, which is dispatched only from this screen.
+  * **Its own restart control returns to a fresh session** through `restartSession`.
 * **The guess log shows what the player logged and nothing else.** No correctness marking, no counts against Truth, no colour or icon distinguishing a real violation from a decoy. It has no access to Truth and must not acquire any.
 * **The quantity control is a custom stepper**, not a bare native number input. Native spinner arrows fall under 2.5.8's user-agent exception and would create unfair false positives.
 * **No test framework.** Throwaway Node scripts, deleted before commit.
@@ -583,6 +614,7 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 * **True Positive / False Positive / False Negative** — the three scoring outcomes.
 * **Baseline** — a level component rendered with no props.
 * **Audit target** — an element the player can point at, identified by its `data-audit-target` value. Called `target` in every contract except `auditTargets`, where the field is named `id`.
+* **Run** — one session of ten rounds, ending at `'gameOver'` or at a restart.
 * **Pure module** — a module that transitively imports no `.jsx`, and therefore loads under plain `node`.
 * Rule IDs are WCAG numbers as strings: `"1.1.1"`, `"3.3.2"`, `"2.4.7"`, `"2.5.8"`. They appear as literals **only** in `src/data/wcagRules.js`; everything else imports `RULE_IDS`.
 
@@ -591,8 +623,10 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 * Quote this file's version line at the top of every task report.
 * Before declaring done: `npm run dev` clean, `npm run build` succeeds, `npm run preview` works at the base path.
 * When verifying against a running server, confirm the port it actually bound to. A stale process from an earlier session can hold the default port and serve an old build, producing a pass against the wrong artifact.
+* **Confirm what `HEAD` actually is before comparing against "the previous commit."** The repository owner commits directly and may have landed something on top of your last task. A comparison against the wrong baseline is a silent wrong answer.
 * Browser-level verification uses Playwright, resolved from the local npx cache. It is **not** a project dependency and must not be added to `package.json`.
 * Verify visually and behaviourally, not just by config. State how you verified each claim.
+* **A declaration is not evidence that it took effect.** A font stack, a class string or a computed style may name something the machine never applied. Where a gate turns on something actually resolving, measure the rendered result rather than quoting the source — and where the obvious measurement is weak, say so and bring a second one.
 * **A resume instruction scopes the work, never the verification.** If a task is stopped partway and resumed at a particular section, the gate list still applies whole. Gates are removed only by striking them by name.
 * **`getBoundingClientRect` is viewport-relative.** Any gate comparing an element's position across two states must compare document-relative position, or report `scrollY` alongside and exclude it from the equality check. A page that scrolls between the two readings will otherwise report every element as moved.
 * **A gate whose premise no longer holds is a finding, not a pass.** If the condition a gate was written to test cannot arise in the current build, report that and say why, rather than recording a pass against a situation that cannot occur.
