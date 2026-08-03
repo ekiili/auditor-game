@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <title>Auditor</title>
+  <!-- The wordmark's capital A, on the wordmark's purple.
+
+       The letterform is the real Fredoka 700 outline, taken from the font file
+       committed at src/assets/fonts and converted to a path here. A favicon is
+       rendered without the page's stylesheets, so Fredoka is not available to
+       it and a <text> element would fall back to an arbitrary face.
+
+       The wordmark's white-on-purple outline treatment is not reproduced: at
+       16px a 6px stroke scales to well under a pixel and the letter closes up.
+       The same two colours are used the other way round instead — the fill
+       carries the letterform and the square carries the brand.
+
+       Purple is #432dd7, the sRGB value of the wordmark-outline custom
+       property in src/index.css (Tailwind indigo-700,
+       oklch(45.7% 0.24 277.023)). -->
+  <rect width="32" height="32" rx="7" fill="#432dd7"/>
+  <path fill="#fff" transform="translate(3.981 27.365) scale(.0338124)" d="M439-637L690-118Q705-88 706-67Q707-46 693-30Q679-14 648 2Q600 25 574 16.5Q548 8 525-41L355-389L187-40Q163 7 137 15.5Q111 24 64 1Q33-14 18.5-30Q4-46 5-67Q6-88 21-118L272-638Q284-662 307.5-676.5Q331-691 356-691Q374-691 389.5-684.5Q405-678 418-666Q431-654 439-637M514-136L197-136L273-292L438-292"/>
+</svg>
