@@ -691,6 +691,21 @@ sessions.
 
 ---
 
+## 38. Restart is available at any point in a session
+
+**Date:** 2026-08-03 · **Status:** Accepted
+
+Restart moves out of the end-of-session report and into persistent chrome, so a
+run can be abandoned and started fresh at any moment rather than only after the
+tenth round. The reasoning is a player one: someone attempting a flawless run
+wants to start over the instant a round goes wrong, and a training tool that
+makes them play out eight more rounds first is obstructing the thing it exists
+to teach. A confirmation step guards the accidental case. Rejected: keeping
+restart to game over only, which is the smaller change but treats a session as
+something you are committed to finishing.
+
+---
+
 ## Open questions
 
 Open questions are tracked in the Pending Decisions section of `CLAUDE.md`,
