@@ -1,10 +1,45 @@
 @import "tailwindcss";
-@import "./assets/fonts/fredoka.css";
 
-/* The wordmark's typeface. Fredoka is committed to this repo and inlined into
- * the stylesheet — see the file above — so it costs no request of any kind.
- * Everything behind it is a fallback for the case where that face fails to
- * parse: `ui-rounded` resolves to SF Pro Rounded on Apple platforms, the named
+/* Fredoka, weight 700, latin subset — the wordmark's typeface.
+ *
+ * Referenced from the file committed at src/assets/fonts. It is fetched from
+ * this project's own origin, which is what Guardrail 1 asks for: nothing comes
+ * from a CDN, from Google, or from anywhere else off-origin. Vite fingerprints
+ * the file and rewrites this url() at build time, so it resolves under the
+ * configured base path without anything here knowing what that base is.
+ *
+ * The rule lives in this file rather than in one of its own beside the font,
+ * because Vite rebases url() against the stylesheet it is compiling and does
+ * not follow a plain @import when doing so — a url() written next to the woff2
+ * is left untouched and 404s at runtime, with only a build-time note to say
+ * so. Keeping the declaration here keeps the path and the rebasing in the same
+ * place.
+ *
+ * Only the one weight the wordmark uses is committed, and only the latin
+ * subset — the wordmark is the single word "Auditor". Licence:
+ * src/assets/fonts/OFL.txt (SIL Open Font License 1.1). Copyright 2016 The
+ * Fredoka Project Authors.
+ *
+ * font-display: swap. The wordmark is text and must never be invisible, which
+ * rules out `block`; and it must always end up in Fredoka, which rules out
+ * `optional`, where the browser is free to abandon the face and keep the
+ * fallback for the rest of the page's life. `swap` costs a brief flash of the
+ * fallback on a cold cache, and that flash costs nothing here: the fallback
+ * this stack lands on measures within half a pixel of Fredoka at 36px, and the
+ * strip centres the level name against itself rather than against the
+ * wordmark, so nothing moves when the swap happens. */
+@font-face {
+  font-family: "Fredoka";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./assets/fonts/fredoka-700-latin.woff2") format("woff2");
+}
+
+/* The wordmark's typeface. Fredoka is committed to this repo and served from
+ * it — see the file above — so nothing is ever fetched off-origin. Everything
+ * behind it is a fallback for the case where that face fails to load or parse:
+ * `ui-rounded` resolves to SF Pro Rounded on Apple platforms, the named
  * families cover the rest, and anything with none of them lands on
  * `system-ui`, which is soft rather than rounded. */
 @theme {
@@ -40,11 +75,18 @@
  * weight instead of being eaten from both sides; where it is unsupported the
  * stroke simply straddles the glyph edge and the wordmark still reads.
  *
- * 3px against a 36px wordmark. The fill carries no contrast at all against the
+ * 6px against a 36px wordmark. The fill carries no contrast at all against the
  * strip — a logotype is exempt, and the outline is what makes the letterforms
- * legible — so the outline has to read as a drawn shape rather than as a
- * hairline, which is what the extra weight buys. */
+ * legible — so the outline is what has to read, and at this weight it reads as
+ * a drawn shape rather than as a hairline.
+ *
+ * A stroke straddles the glyph path, half inside and half out, so 6px puts 3px
+ * outside the letterform and 3px inside it. `paint-order` then paints the fill
+ * over that inner half, which is why the white survives at all at this weight
+ * — without it the two halves would meet in the thinner strokes and close the
+ * letters up. It also grows inward from the counters, and at 6px the small
+ * ones do close: see the report accompanying this change. */
 .wordmark-outline {
-  -webkit-text-stroke: 3px var(--wordmark-outline);
+  -webkit-text-stroke: 6px var(--wordmark-outline);
   paint-order: stroke fill;
 }
