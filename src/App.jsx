@@ -9,6 +9,7 @@ import RulePicker from './components/RulePicker.jsx'
 import SelectionOverlay from './components/SelectionOverlay.jsx'
 import SessionReport from './components/SessionReport.jsx'
 import TargetList from './components/TargetList.jsx'
+import TopStrip from './components/TopStrip.jsx'
 import { inspectElement, inspectFocus, isTextEntry } from './engine/readout.js'
 import { deriveMarks } from './engine/review.js'
 import { selectViolations } from './engine/saboteurEngine.js'
@@ -290,12 +291,21 @@ function App() {
   }
 
   // A restart rolls its own round, exactly as startRound and nextRound do: the
-  // reducer is handed the violations and never generates them.
-  const handleRestart = () => {
+  // reducer is handed the violations and never generates them. Both restart
+  // routes share this; only what happens to focus afterwards differs.
+  const restart = () => {
     focusReadoutsRef.current = {}
     setConfirmOpen(false)
-    focusAuditModeRef.current = true
     dispatch(restartSession({ violations: selectViolations(currentLevel) }))
+  }
+
+  // The report's control unmounts with the report, so focus would fall to the
+  // body. It is moved deliberately instead, exactly as on a confirmed
+  // submission. The strip's control needs none of this: it is present in every
+  // status, so focus can simply stay where the player left it.
+  const handleReportRestart = () => {
+    focusAuditModeRef.current = true
+    restart()
   }
 
   const result = state.lastResult
@@ -336,211 +346,222 @@ function App() {
 
   // h-screen + overflow-hidden, not min-h-screen: the document must never grow
   // a scrollbar. Everything that can overflow scrolls inside its own column
-  // instead, so the audited card never leaves the viewport.
+  // instead, so the audited card never leaves the viewport. The strip is a
+  // fixed-height band taken off the top of that budget; `min-h-0` on the
+  // region below it is what makes the columns absorb the loss by scrolling
+  // internally rather than by pushing the document taller.
   return (
-    <main className="flex h-screen flex-col items-center gap-6 overflow-hidden bg-gray-50 p-6">
-      <h1 className="sr-only">Audit Game</h1>
-
-      <AuditModeToggle
-        ref={auditModeRef}
-        auditMode={state.auditMode}
-        onToggle={() => dispatch(toggleAuditMode())}
-        unavailableReason={toggleUnavailableReason}
+    <div className="flex h-screen flex-col overflow-hidden bg-gray-50">
+      <TopStrip
+        levelName={currentLevel.name}
+        round={state.round}
+        totalRounds={state.totalRounds}
+        score={state.score}
+        onRestart={restart}
       />
 
-      {/* min-h-0 lets the columns shrink below their content height, which is
-          what makes their own overflow-y-auto engage instead of pushing the
-          row taller. lg:items-stretch gives every column the full row height,
-          so the card's position no longer depends on how tall anything beside
-          it grows — inspecting an element never moves it. */}
-      <div className="flex w-full min-h-0 flex-1 flex-col items-center gap-6 lg:flex-row lg:items-stretch lg:justify-center">
-        {/* Scrolling lives on this column, never on the sizing-only wrapper
-            below: a safety valve for viewports too short for the card, which
-            scrolls rather than clipping it. From lg up the column takes
-            whatever the two fixed-width tools columns leave, and centres the
-            card in it — the card's own max-width, not the column's, is what
-            decides how wide it renders.
+      <main className="flex w-full min-h-0 flex-1 flex-col items-center gap-6 p-6">
+        <AuditModeToggle
+          ref={auditModeRef}
+          auditMode={state.auditMode}
+          onToggle={() => dispatch(toggleAuditMode())}
+          unavailableReason={toggleUnavailableReason}
+        />
 
-            `relative` is load-bearing, not decoration. The sr-only live region
-            inside the stepper is position:absolute; without a positioned
-            ancestor it resolves against the initial containing block, escapes
-            this column's overflow entirely, and grows the document instead.
-            It does not affect the overlay, which is position:fixed — only
-            transform/filter/contain would capture that, and none is used. */}
-        {!isGameOver && (
-          <div className="relative w-full min-h-0 max-w-sm flex-1 overflow-y-auto lg:flex lg:max-w-none lg:flex-col lg:items-center">
-            <div
-              ref={canvasRef}
-              className={cardWrapperClasses}
-              {...markScope}
-              onMouseDownCapture={handleCanvasMouseDownCapture}
-              onClickCapture={handleCanvasClickCapture}
-              onFocus={handleCanvasFocus}
-            >
-              <LevelComponent
-                {...currentLevel.applySabotage(state.truth)}
-                interactive={!isReviewing}
-              />
+        {/* min-h-0 lets the columns shrink below their content height, which is
+            what makes their own overflow-y-auto engage instead of pushing the
+            row taller. lg:items-stretch gives every column the full row height,
+            so the card's position no longer depends on how tall anything beside
+            it grows — inspecting an element never moves it. */}
+        <div className="flex w-full min-h-0 flex-1 flex-col items-center gap-6 lg:flex-row lg:items-stretch lg:justify-center">
+          {/* Scrolling lives on this column, never on the sizing-only wrapper
+              below: a safety valve for viewports too short for the card, which
+              scrolls rather than clipping it. From lg up the column takes
+              whatever the two fixed-width tools columns leave, and centres the
+              card in it — the card's own max-width, not the column's, is what
+              decides how wide it renders.
+
+              `relative` is load-bearing, not decoration. The sr-only live region
+              inside the stepper is position:absolute; without a positioned
+              ancestor it resolves against the initial containing block, escapes
+              this column's overflow entirely, and grows the document instead.
+              It does not affect the overlay, which is position:fixed — only
+              transform/filter/contain would capture that, and none is used. */}
+          {!isGameOver && (
+            <div className="relative w-full min-h-0 max-w-sm flex-1 overflow-y-auto lg:flex lg:max-w-none lg:flex-col lg:items-center">
+              <div
+                ref={canvasRef}
+                className={cardWrapperClasses}
+                {...markScope}
+                onMouseDownCapture={handleCanvasMouseDownCapture}
+                onClickCapture={handleCanvasClickCapture}
+                onFocus={handleCanvasFocus}
+              >
+                <LevelComponent
+                  {...currentLevel.applySabotage(state.truth)}
+                  interactive={!isReviewing}
+                />
+              </div>
+
+              {isReviewing && <ReviewMarks marks={marks} selectedTarget={state.selectedTarget} />}
             </div>
+          )}
 
-            {isReviewing && <ReviewMarks marks={marks} selectedTarget={state.selectedTarget} />}
-          </div>
-        )}
+          {showChromeColumn && (
+            <div className={isGameOver ? REPORT_WRAPPER_CLASSES : TOOLS_WRAPPER_CLASSES}>
+              {/* The auditing tools belong to the round, not to the result. Once
+                  the round is scored the findings list is the single place a
+                  result is read, and the wrapper is its to fill. */}
+              {isAuditing && (
+                <>
+                  <div className={TARGETS_COLUMN_CLASSES}>
+                    {/* Both selection routes move focus, so the reading the panel
+                        shows never depends on how the player got there. */}
+                    <TargetList
+                      auditTargets={currentLevel.auditTargets}
+                      selectedTarget={state.selectedTarget}
+                      onSelect={(targetId) => {
+                        focusTarget(targetId)
+                        dispatch(selectTarget(targetId))
+                      }}
+                    />
+                  </div>
 
-        {showChromeColumn && (
-          <div className={isGameOver ? REPORT_WRAPPER_CLASSES : TOOLS_WRAPPER_CLASSES}>
-            {/* The auditing tools belong to the round, not to the result. Once
-                the round is scored the findings list is the single place a
-                result is read, and the wrapper is its to fill. */}
-            {isAuditing && (
-              <>
-                <div className={TARGETS_COLUMN_CLASSES}>
-                  {/* Both selection routes move focus, so the reading the panel
-                      shows never depends on how the player got there. */}
-                  <TargetList
-                    auditTargets={currentLevel.auditTargets}
-                    selectedTarget={state.selectedTarget}
-                    onSelect={(targetId) => {
-                      focusTarget(targetId)
-                      dispatch(selectTarget(targetId))
-                    }}
-                  />
-                </div>
+                  <div className={FLUID_COLUMN_CLASSES}>
+                    <ReadoutPanel targetId={state.selectedTarget} containerRef={canvasRef} />
 
+                    <RulePicker
+                      selectedTarget={state.selectedTarget}
+                      selectedRule={state.selectedRule}
+                      guesses={state.guesses}
+                      onSelectRule={(ruleId) => dispatch(selectRule(ruleId))}
+                      onLog={() =>
+                        dispatch(
+                          addGuess({ ruleId: state.selectedRule, target: state.selectedTarget }),
+                        )
+                      }
+                    />
+
+                    <GuessLog
+                      guesses={state.guesses}
+                      auditTargets={currentLevel.auditTargets}
+                      onRemove={(guess) => dispatch(removeGuess(guess))}
+                    />
+
+                    <div>
+                      <button
+                        type="button"
+                        ref={submitRef}
+                        onClick={handleSubmit}
+                        className={BUTTON_CLASSES}
+                      >
+                        Submit audit
+                      </button>
+                    </div>
+
+                    {/* Inline, in the tools region, directly under the control it
+                        belongs to. It takes layout space where the modal did not,
+                        so it is placed in a column that already has a fixed
+                        height and its own scroll — the card is in another column
+                        and cannot be moved by anything that happens here. */}
+                    {showConfirmPanel && (
+                      <section
+                        aria-labelledby={confirmTitleId}
+                        className="rounded-lg border-2 border-indigo-700 bg-white p-4"
+                      >
+                        <h2 id={confirmTitleId} className="text-base font-semibold text-gray-900">
+                          Confirm submission
+                        </h2>
+
+                        <p id={confirmDescriptionId} className="mt-2 text-sm text-gray-900">
+                          Submit with no violations logged? You&apos;re declaring this component
+                          compliant.
+                        </p>
+
+                        <div className="mt-4 flex flex-wrap gap-3">
+                          <button
+                            type="button"
+                            ref={cancelConfirmRef}
+                            onClick={closeConfirm}
+                            aria-describedby={confirmDescriptionId}
+                            className={BUTTON_CLASSES}
+                          >
+                            Cancel
+                          </button>
+
+                          {/* Not "Submit audit" a second time: two buttons with one
+                              accessible name is a puzzle for anyone listing them. */}
+                          <button
+                            type="button"
+                            onClick={handleConfirmSubmit}
+                            aria-describedby={confirmDescriptionId}
+                            className={BUTTON_CLASSES}
+                          >
+                            Submit with nothing logged
+                          </button>
+                        </div>
+                      </section>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {isReviewing && result !== null && (
                 <div className={FLUID_COLUMN_CLASSES}>
-                  <ReadoutPanel targetId={state.selectedTarget} containerRef={canvasRef} />
+                  <div className="rounded-lg border border-gray-300 bg-white p-4">
+                    <h2 className="text-base font-semibold text-gray-900">
+                      Round {state.round} of {state.totalRounds}
+                    </h2>
+                    <p className="mt-2 text-sm text-gray-900">Round score: {result.score}</p>
+                    <p className="text-sm text-gray-900">Total score: {state.score}</p>
+                  </div>
 
-                  <RulePicker
-                    selectedTarget={state.selectedTarget}
-                    selectedRule={state.selectedRule}
-                    guesses={state.guesses}
-                    onSelectRule={(ruleId) => dispatch(selectRule(ruleId))}
-                    onLog={() =>
-                      dispatch(
-                        addGuess({ ruleId: state.selectedRule, target: state.selectedTarget }),
-                      )
-                    }
-                  />
-
-                  <GuessLog
-                    guesses={state.guesses}
+                  <FindingsList
+                    result={result}
                     auditTargets={currentLevel.auditTargets}
-                    onRemove={(guess) => dispatch(removeGuess(guess))}
+                    snapshot={state.lastSnapshot}
+                    selectedTarget={state.selectedTarget}
+                    onSelect={(targetId) => dispatch(selectTarget(targetId))}
                   />
 
                   <div>
                     <button
                       type="button"
-                      ref={submitRef}
-                      onClick={handleSubmit}
+                      ref={nextRoundRef}
+                      onClick={handleNextRound}
                       className={BUTTON_CLASSES}
                     >
-                      Submit audit
+                      Next round
                     </button>
                   </div>
-
-                  {/* Inline, in the tools region, directly under the control it
-                      belongs to. It takes layout space where the modal did not,
-                      so it is placed in a column that already has a fixed
-                      height and its own scroll — the card is in another column
-                      and cannot be moved by anything that happens here. */}
-                  {showConfirmPanel && (
-                    <section
-                      aria-labelledby={confirmTitleId}
-                      className="rounded-lg border-2 border-indigo-700 bg-white p-4"
-                    >
-                      <h2 id={confirmTitleId} className="text-base font-semibold text-gray-900">
-                        Confirm submission
-                      </h2>
-
-                      <p id={confirmDescriptionId} className="mt-2 text-sm text-gray-900">
-                        Submit with no violations logged? You&apos;re declaring this component
-                        compliant.
-                      </p>
-
-                      <div className="mt-4 flex flex-wrap gap-3">
-                        <button
-                          type="button"
-                          ref={cancelConfirmRef}
-                          onClick={closeConfirm}
-                          aria-describedby={confirmDescriptionId}
-                          className={BUTTON_CLASSES}
-                        >
-                          Cancel
-                        </button>
-
-                        {/* Not "Submit audit" a second time: two buttons with one
-                            accessible name is a puzzle for anyone listing them. */}
-                        <button
-                          type="button"
-                          onClick={handleConfirmSubmit}
-                          aria-describedby={confirmDescriptionId}
-                          className={BUTTON_CLASSES}
-                        >
-                          Submit with nothing logged
-                        </button>
-                      </div>
-                    </section>
-                  )}
                 </div>
-              </>
-            )}
+              )}
 
-            {isReviewing && result !== null && (
-              <div className={FLUID_COLUMN_CLASSES}>
-                <div className="rounded-lg border border-gray-300 bg-white p-4">
-                  <h2 className="text-base font-semibold text-gray-900">
-                    Round {state.round} of {state.totalRounds}
-                  </h2>
-                  <p className="mt-2 text-sm text-gray-900">Round score: {result.score}</p>
-                  <p className="text-sm text-gray-900">Total score: {state.score}</p>
-                </div>
-
-                <FindingsList
-                  result={result}
+              {/* No sub-column: the report is the whole row, so there is nothing
+                  to divide and no empty column left where the card was. */}
+              {isGameOver && (
+                <SessionReport
+                  history={state.history}
                   auditTargets={currentLevel.auditTargets}
-                  snapshot={state.lastSnapshot}
-                  selectedTarget={state.selectedTarget}
-                  onSelect={(targetId) => dispatch(selectTarget(targetId))}
+                  score={state.score}
+                  onRestart={handleReportRestart}
+                  restartRef={restartRef}
                 />
+              )}
+            </div>
+          )}
+        </div>
 
-                <div>
-                  <button
-                    type="button"
-                    ref={nextRoundRef}
-                    onClick={handleNextRound}
-                    className={BUTTON_CLASSES}
-                  >
-                    Next round
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* No sub-column: the report is the whole row, so there is nothing
-                to divide and no empty column left where the card was. */}
-            {isGameOver && (
-              <SessionReport
-                history={state.history}
-                auditTargets={currentLevel.auditTargets}
-                score={state.score}
-                onRestart={handleRestart}
-                restartRef={restartRef}
-              />
-            )}
-          </div>
+        {/* Auditing only. During review the element already carries a mark
+            stating its outcome, and a second ring at a different offset and
+            colour would read as an accident rather than as emphasis — so
+            selecting a finding thickens that mark instead. */}
+        {state.auditMode && isAuditing && (
+          <SelectionOverlay targetId={state.selectedTarget} containerRef={canvasRef} />
         )}
-      </div>
 
-      {/* Auditing only. During review the element already carries a mark
-          stating its outcome, and a second ring at a different offset and
-          colour would read as an accident rather than as emphasis — so
-          selecting a finding thickens that mark instead. */}
-      {state.auditMode && isAuditing && (
-        <SelectionOverlay targetId={state.selectedTarget} containerRef={canvasRef} />
-      )}
-
-    </main>
+      </main>
+    </div>
   )
 }
 
