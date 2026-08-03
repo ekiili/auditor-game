@@ -1,13 +1,14 @@
 @import "tailwindcss";
+@import "./assets/fonts/fredoka.css";
 
-/* The wordmark's typeface. A stack of families that ship with an operating
- * system or an office suite — no font file is fetched, and none is committed.
- * `ui-rounded` resolves to SF Pro Rounded on Apple platforms; the named
- * families cover the rest, and anything that has none of them lands on
- * `system-ui`, which is soft rather than rounded. The wordmark's outline does
- * the rest of the work there. */
+/* The wordmark's typeface. Fredoka is committed to this repo and inlined into
+ * the stylesheet — see the file above — so it costs no request of any kind.
+ * Everything behind it is a fallback for the case where that face fails to
+ * parse: `ui-rounded` resolves to SF Pro Rounded on Apple platforms, the named
+ * families cover the rest, and anything with none of them lands on
+ * `system-ui`, which is soft rather than rounded. */
 @theme {
-  --font-wordmark: ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold",
+  --font-wordmark: "Fredoka", ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold",
     "Hiragino Maru Gothic ProN", "Varela Round", "Trebuchet MS", system-ui, sans-serif;
 }
 
@@ -37,8 +38,13 @@
  * has no utility for either half of that, so it is written out once here.
  * `paint-order` puts the stroke behind the fill, so the white keeps its full
  * weight instead of being eaten from both sides; where it is unsupported the
- * stroke simply straddles the glyph edge and the wordmark still reads. */
+ * stroke simply straddles the glyph edge and the wordmark still reads.
+ *
+ * 3px against a 36px wordmark. The fill carries no contrast at all against the
+ * strip — a logotype is exempt, and the outline is what makes the letterforms
+ * legible — so the outline has to read as a drawn shape rather than as a
+ * hairline, which is what the extra weight buys. */
 .wordmark-outline {
-  -webkit-text-stroke: 2px var(--wordmark-outline);
+  -webkit-text-stroke: 3px var(--wordmark-outline);
   paint-order: stroke fill;
 }

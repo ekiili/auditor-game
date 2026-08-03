@@ -16,6 +16,22 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 // round number and no level name can deepen it. The session figures sit in a
 // fixed-width slot with tabular figures for the same reason, one level down:
 // `+9` becoming `-10` must not shuffle the controls beside it.
+//
+// The level name is taken out of the flow and centred on the strip's whole
+// width, so it sits at the midpoint of the screen rather than at the midpoint
+// of whatever the wordmark and the controls happen to leave between them — a
+// gap that moves every time either of them changes size.
+//
+// That costs room, and the arithmetic is tight enough to record. At the
+// narrowest supported width, 900px, the strip has 852px between its padding.
+// The controls take 202 and the session figures 104, with a 16px gap: 322,
+// ending at x=876, so nothing centred may reach past x=554. The centre is
+// x=450, which leaves 208px for a name that stays clear of them — and that is
+// why the session figures are stacked on two lines instead of running along
+// one. On one line they measure 164px rather than 104px, the controls then
+// begin at x=490, and a centred name would have had 80px to live in: less than
+// half of what this level's name needs. Two lines cost nothing, because the
+// strip's height is fixed and had the room already.
 
 const STRIP_BUTTON_CLASSES =
   'inline-flex min-h-11 items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100 aria-expanded:border-indigo-700 aria-expanded:bg-indigo-700 aria-expanded:text-white aria-expanded:hover:border-indigo-800 aria-expanded:hover:bg-indigo-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700'
@@ -103,19 +119,30 @@ function TopStrip({ levelName, round, totalRounds, score, onRestart }) {
   const toggle = (panel) => setOpenPanel((current) => (current === panel ? null : panel))
 
   return (
-    <header className="relative z-20 flex h-14 w-full flex-shrink-0 items-center gap-4 border-b border-gray-300 bg-white px-6">
-      <h1 className="wordmark-outline font-wordmark shrink-0 text-2xl font-bold text-white">
+    <header className="relative z-20 flex h-[66px] w-full flex-shrink-0 items-center gap-4 border-b border-gray-300 bg-white px-6">
+      <h1 className="wordmark-outline font-wordmark shrink-0 text-4xl font-bold text-white">
         Auditor
       </h1>
 
-      {/* The level names itself. Nothing here knows which level is loaded. */}
-      <p className="min-w-0 truncate text-sm text-gray-700">{levelName}</p>
+      {/* The level names itself. Nothing here knows which level is loaded.
+
+          Out of flow, with equal left and right insets and auto side margins,
+          so the box shrinks to the text and lands on the midpoint of the whole
+          strip. `max-w-48` is what keeps it clear of the controls at 900px;
+          a longer name truncates rather than colliding with them. */}
+      <p className="absolute inset-x-0 top-1/2 mx-auto w-fit max-w-48 -translate-y-1/2 truncate text-center text-sm text-gray-700">
+        {levelName}
+      </p>
 
       {/* Fixed width and tabular figures: the digits change every round and
-          must not drag the controls beside them along. */}
-      <p className="ml-auto w-56 shrink-0 text-right text-sm whitespace-nowrap text-gray-900 tabular-nums">
-        Round {round} of {totalRounds} · Score {formatScore(score)}
-      </p>
+          must not drag the controls beside them along. Two lines, because one
+          would take 164px of a width the centred name needs — see above. */}
+      <div className="ml-auto w-26 shrink-0 text-right text-sm leading-tight whitespace-nowrap text-gray-900 tabular-nums">
+        <span className="block">
+          Round {round} of {totalRounds}
+        </span>
+        <span className="block font-semibold">Score {formatScore(score)}</span>
+      </div>
 
       <div className="flex shrink-0 items-center gap-3">
         <button
