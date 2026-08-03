@@ -1,4 +1,4 @@
-> **CLAUDE.md — v18 (2026-08-02)**
+> **CLAUDE.md — v19 (2026-08-03)**
 > This file is maintained by the Planner. Do not edit, append to, or
 > reorganize it. If you find it incomplete, ambiguous, or contradicted by
 > your task prompt, do not resolve the conflict yourself — report the
@@ -44,8 +44,8 @@ If sabotage decisions leak into a component, a future editing session will "help
 ```
 Layer 1 — TRUTH         src/engine/saboteurEngine.js
                         Rolls the dice. Owns the compliant/broken split:
-                        COMPLIANT_CHANCE = 0.2, so 20% of rounds are clean
-                        and 80% carry at least one violation.
+                        COMPLIANT_CHANCE = 0.05, so 5% of rounds are clean
+                        and 95% carry at least one violation.
                         Outputs violations drawn from a level's sabotageMap.
                         Knows nothing about JSX or any specific level.
 
@@ -110,7 +110,8 @@ src/
 │  ├─ RulePicker.jsx
 │  ├─ GuessLog.jsx
 │  ├─ FindingsList.jsx
-│  └─ ReviewMarks.jsx
+│  ├─ ReviewMarks.jsx
+│  └─ SessionReport.jsx
 ├─ data/
 │  └─ wcagRules.js                 static rule data only — no logic
 ├─ engine/
@@ -247,7 +248,7 @@ For `ecommerce-checkout`:
 
 * `interactive` — when `false`, the component's own controls are removed from the tab order. It is a rendering variant in neutral language and states nothing about correctness, compliance, or bugs. The component is not told why it is being asked.
 
-The game sets it `false` while `status` is `'reviewing'`, and never otherwise.
+The game sets it `false` while `status` is `'reviewing'`, and never otherwise. At `'gameOver'` the component is not rendered at all, so the prop does not arise there.
 
 **Any future prop of this kind is recorded here before it is built.** A prop that crosses into a level component and is not in the Variant Props table has no other home, and an unrecorded one is indistinguishable from game logic leaking into the presentation layer.
 
@@ -297,7 +298,7 @@ Call it against `document.activeElement`. Whether `:focus-visible` matches an un
 
 ### Game state
 
-`src/state/gameState.js` exports `INITIAL_STATE`, `gameReducer`, and eight action creators.
+`src/state/gameState.js` exports `INITIAL_STATE`, `gameReducer`, and nine action creators.
 
 ```js
 {
@@ -332,7 +333,7 @@ Call it against `document.activeElement`. Whether `:focus-visible` matches an un
 
 Action types are bare camelCase strings, identical to their creator names — no namespace prefix, no `SCREAMING_CASE`:
 
-`startRound` · `toggleAuditMode` · `selectTarget` · `selectRule` · `addGuess` · `removeGuess` · `submitAudit` · `nextRound`
+`startRound` · `toggleAuditMode` · `selectTarget` · `selectRule` · `addGuess` · `removeGuess` · `submitAudit` · `nextRound` · `restartSession`
 
 Payload shapes are recorded here as literal shapes, not by reference to each other. Reading one creator to work out another's convention is how the two were confused once already.
 
@@ -341,11 +342,14 @@ Payload shapes are recorded here as literal shapes, not by reference to each oth
 | `startRound({ levelId, violations })` | `{ levelId, violations }` |
 | `submitAudit({ snapshot })` | `{ snapshot }` |
 | `nextRound({ violations })` | `{ violations }` |
+| `restartSession({ violations })` | `{ violations }` |
 | `selectTarget(targetId)` | `targetId` — an `auditTargets` entry's `id`, or `null` |
 | `selectRule(ruleId)` | `ruleId` — a `RULE_IDS` value, or `null` |
 | `addGuess(guess)` | `guess` — a whole **Guess entry** |
 | `removeGuess(guess)` | `guess` — a whole **Guess entry** |
 | `toggleAuditMode()` | none — the action is `{ type: 'toggleAuditMode' }` and carries no `payload` key at all |
+
+`restartSession` returns the session to its opening state — round 1, score 0, empty `history`, `status` back to `'auditing'` — with the payload's violations as the new round's Truth. Like `startRound` and `nextRound`, it receives Truth rather than generating it. It is dispatched only from `'gameOver'`.
 
 **Three payload forms exist and none is being migrated.** A payload carrying more than one value — or one value that may plausibly need a companion later — is an **object with named keys**. A payload carrying a single identifier or a single whole contract shape is that **value, bare**. An action that needs no data omits the `payload` key entirely rather than setting it to `null` or `undefined`.
 
@@ -480,7 +484,7 @@ Do not build ahead. If asked to build a button, build only that button. Do not i
 
 ## Accessibility Standards
 
-**Scope:** the game's own chrome — HUD, Inspector, buttons, submit confirmation, review marks and findings list — is **always** fully WCAG 2.2 AA compliant. Only the level component inside the canvas is ever degraded, and only through variant props.
+**Scope:** the game's own chrome — HUD, Inspector, buttons, submit confirmation, review marks, findings list and end-of-session report — is **always** fully WCAG 2.2 AA compliant. Only the level component inside the canvas is ever degraded, and only through variant props.
 
 All baseline code must strictly adhere to WCAG 2.2 AA:
 
@@ -512,8 +516,8 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 
 * **Scoring:** +1 per true positive, −1 per false positive, −1 per false negative. A correct empty submission on a clean round scores +1. Round scores may go negative and are not clamped. Values are provisional and defined as named constants for tuning.
 * **No "Declare Compliant" control.** Submit means "I have logged every violation I found." An empty log is a valid answer, guarded by a confirmation step.
-* **The submit confirmation is an inline panel, not a modal.** It sits inside the chrome column, directly beneath the Submit control. It does not overlay or tint the page, does not block interaction elsewhere, and participates in normal layout with no stacking of its own. Because it is not a dialog, the browser supplies none of the behaviour a dialog would: moving focus into the panel when it opens, dismissal on Escape, and returning focus to the Submit control on cancel are each built deliberately. Losing them would trade a visual complaint for an accessibility failure, in the one project that cannot afford one.
-  * **The column placement is load-bearing, not cosmetic.** The card lives in the other column, and each column's height is fixed by the row, so nothing added inside the chrome column can move the card. Had the panel been placed near the card, opening it would shift the element geometry captured at submission — and that geometry is the evidence the review explains false alarms with. Any later relocation must preserve this property.
+* **The submit confirmation is an inline panel, not a modal.** It sits inside the tools region, directly beneath the Submit control. It does not overlay or tint the page, does not block interaction elsewhere, and participates in normal layout with no stacking of its own. Because it is not a dialog, the browser supplies none of the behaviour a dialog would: moving focus into the panel when it opens, dismissal on Escape, and returning focus to the Submit control on cancel are each built deliberately. Losing them would trade a visual complaint for an accessibility failure, in the one project that cannot afford one.
+  * **Its placement outside the card's column is load-bearing, not cosmetic.** The card lives in a column of its own, and no column's width or height responds to another's contents, so nothing added inside the tools region can move the card. Had the panel been placed near the card, opening it would shift the element geometry captured at submission — and that geometry is the evidence the review explains false alarms with. Any later relocation must preserve this property.
   * The confirming control is not named the same as the control that opens the panel. Two identically named buttons in the document at once are a puzzle for anyone listing controls by name.
 * **Audit Mode starts off** each round, so the player can use the component normally first.
 * **The card stays live during an audit.** The component under audit remains fully operable while Audit Mode is on. The previous suppression of Enter and Space was incomplete — arrow keys and typing still changed the quantity — and completing it would have meant enumerating every route by which a control can be operated, a list that grows with every component added. Nothing consequential happens when the card is operated: the quantity counter is the only functioning control and the ✕ closes nothing. Operating a control is also part of how a real audit is conducted. This does not weaken Guardrail 7, which governs how anything would be suppressed if it ever were.
@@ -530,8 +534,11 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
   * Real Safari on macOS and iOS is untested and that gap is accepted. The WebKit engine result stands in for it.
 * **Element-fact predicates live in `readout.js`** — currently `isKeyboardFocusable` and `isTextEntry`. Both the Inspector and the review need the same facts, and the Inspector must not import from the review phase, which would point the dependency backwards. `isTextEntry` takes a live element rather than a Readout object, because its caller runs during a `mousedown` when no readout exists yet. It is written as a deny-list of non-text input types rather than an allow-list of text ones: the DOM normalises unknown and absent types to `text`, so an allow-list would silently misclassify any input type HTML gains in future, and a deny-list will not.
 * **Audit Mode off means no visible game.** Before Audit Mode is enabled the page looks like an ordinary website — no Inspector, no overlays, no annotations over the card. The target list, overlay, readout panel, rule picker and guess log are absent from the DOM, not hidden.
-* **The game never scrolls the page.** Both columns are constrained to the viewport height and scroll internally, within their own containers. The audited component is visible at every moment of the round, because the game's core act is comparing what the element looks like against what the Inspector reports about it, and that comparison cannot survive a scroll. Two consequences are load-bearing and must survive any later refactor:
-  * **Each column carries `position: relative`.** The `sr-only` helpers are `position: absolute` with no offsets, so without a positioned ancestor they resolve against the initial containing block, escape their column's `overflow`, and grow the document past the viewport — two 1px elements are enough to defeat the whole decision. `position: relative` is safe here: it does not create a containing block for `position: fixed` and so cannot capture the selection overlay, where `transform`, `filter`, `perspective` and `contain` would.
+* **The wide layout is three regions side by side: the card, the audit target list, and everything else.** At `lg` and above the tools do not share one column. The target list stands alone; the Inspector, rule picker, guess log, Submit control and submit confirmation occupy a second. Selecting a target and reading what the Inspector reports about it is the game's core act, and in a single scrolling column that act meant scrolling between the two. A third tools column was considered and rejected as the larger change.
+  * **The card is centred horizontally in its own column, which is the only fluid region.** Both tools columns carry fixed widths, and the wrapper around them is pinned to their sum in every status. This is the mechanism upholding the constraint below, not a styling preference: the card's column can change width only if a tools column does, and neither responds to its contents. It also means the review — one column occupying the space two held — leaves the card exactly where the audit left it, at the moment the player is asked to compare the marks against what they just audited. A tools region that shrink-wrapped its own content would slide the card sideways there.
+  * **Below `lg` everything stacks in a single scrolling column, exactly as it did before the split.** This is a decision, not an omission: the game targets a reasonably wide window. The two sub-columns generate no boxes at that width, so the panels remain direct children of the same column and the narrow layout is unchanged rather than approximately preserved — which is also what keeps the `sr-only` helpers inside a positioned ancestor there. Do not introduce a narrow-screen split, a fixed-height tools region, or any other new treatment below `lg` without asking.
+* **The game never scrolls the page.** Every column is constrained to the viewport height and scrolls internally, within its own container. The audited component is visible at every moment of the round, because the game's core act is comparing what the element looks like against what the Inspector reports about it, and that comparison cannot survive a scroll. Two consequences are load-bearing and must survive any later refactor:
+  * **Every scrolling column carries `position: relative`.** The `sr-only` helpers are `position: absolute` with no offsets, so without a positioned ancestor they resolve against the initial containing block, escape their column's `overflow`, and grow the document past the viewport — two 1px elements are enough to defeat the whole decision. Any new scroll container needs the same treatment. `position: relative` is safe here: it does not create a containing block for `position: fixed` and so cannot capture the selection overlay, where `transform`, `filter`, `perspective` and `contain` would.
   * **The selection overlay's capture-phase scroll listeners stay.** The card still moves when its own column scrolls on a short viewport, so the tracking is doing real work and is not redundant.
 * **Interception is capture-phase**, on a sizing-only wrapper around the level component. A bubble-phase handler runs after the card's own handler has already fired. The wrapper adds no padding, margin, border, or transform — a transform would create a containing block and move the overlay.
 * **The Inspector reports facts, not verdicts.** It shows role, accessible name, dimensions, and focus styles in neutral styling. Empty values are never coloured, iconed, or flagged. The absence is the signal; noticing it is the skill.
@@ -559,6 +566,12 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 * **Findings are grouped into three sections** — missed, then flagged in error, then caught — each a distinct colour-coded panel mirroring one of the Round result's three arrays. The section heading carries the meaning of its category, so colour is reinforcement rather than the sole carrier and individual entries need no repeated status label. The order puts the instructive content first and the player's successes last. A section with no entries is not rendered at all: a round with nothing missed and nothing flagged in error shows the caught panel alone, filling the column under a "Perfect!" heading. This is the same screen emphasised, not a separate one.
   * **Within a section, a finding's element-and-rule line always reads as stronger than the explanation beneath it**, selected or not, and findings are separated from one another by spacing and a light divider. They are not individual bordered cards. The selection highlight covers the whole finding rather than its top line only — a highlight confined to the top line reads as a header for everything below it, including the next finding.
 * **Every entry carries a plain-language summary of its rule**, identical in form across all three sections. Entries flagged in error carry one thing more — the measurement showing the element passed, taken from the Round snapshot — because the rule alone explains the criterion while the measurement explains this particular verdict. One case must not be folded into the general one: where an element can never receive focus at all, the review states that the criterion does not apply, never that the player failed to test it.
+* **At game over the card is gone, not inert.** When `status` reaches `'gameOver'` the level component is not rendered at all, and the end-of-session report spans the full width of the layout with no empty column where the card stood. A fully working card beside a summary of a finished session invites an audit that can no longer be logged. This is distinct from `'reviewing'`, where the card stays present because the marks on it are half the result.
+* **The end-of-session report reads as a debrief, not a spreadsheet.** It is the last thing the player sees, and a dense grid of round numbers and scores would end the session on the least instructive thing about it. Four decisions follow from that:
+  * **One row per round, each expandable** to what was missed and what was wrongly flagged in that round. The detail is available without being imposed on a player who only wants the shape of their session.
+  * **"Perfect!" means a flawless submission** — every violation present found, nothing flagged in error — and a correct empty submission on a clean round earns it too. Recognising a clean page is a real skill and is not treated as a lesser result.
+  * **The session total sits at the bottom**, after the rounds rather than above them, so the report reads as an account of what happened before it reads as a verdict.
+  * **Restart returns to a fresh session** through `restartSession`, which is dispatched only from this screen.
 * **The guess log shows what the player logged and nothing else.** No correctness marking, no counts against Truth, no colour or icon distinguishing a real violation from a decoy. It has no access to Truth and must not acquire any.
 * **The quantity control is a custom stepper**, not a bare native number input. Native spinner arrows fall under 2.5.8's user-agent exception and would create unfair false positives.
 * **No test framework.** Throwaway Node scripts, deleted before commit.
@@ -584,7 +597,7 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 * **`getBoundingClientRect` is viewport-relative.** Any gate comparing an element's position across two states must compare document-relative position, or report `scrollY` alongside and exclude it from the equality check. A page that scrolls between the two readings will otherwise report every element as moved.
 * **A gate whose premise no longer holds is a finding, not a pass.** If the condition a gate was written to test cannot arise in the current build, report that and say why, rather than recording a pass against a situation that cannot occur.
 * Report deviations and why, rather than deviating silently.
-* Commits are per task, and a task commits only when its prompt says to. Conventional commit prefixes: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`. These bind your commits. Commits made directly by the repository owner may not carry them, and that is not a discrepancy to report.
+* Commits are per task, and a task commits only when its prompt says to. Task commits land on `main`. Conventional commit prefixes: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`. These bind your commits. Commits made directly by the repository owner may not carry them, and that is not a discrepancy to report.
 * Never add a dependency, change the build target, or alter the file structure without asking.
 * Do not create test-framework config, CI workflows, or deployment automation unless a task asks for it.
 
@@ -606,6 +619,5 @@ Sabotage is random per page load. A single observation of a rendered level descr
 Genuinely unsettled. This list is authoritative; `docs/decisions.md` points here rather than maintaining its own copy. If a task requires one of these, stop and ask:
 
 * **Explaining exemptions.** A control excused by the standard — user-agent spinner arrows under 2.5.8, for instance — cannot be explained from a reading, because the exemption is not visible in the DOM. It needs written text per exemption. Phase 1 has none, since the quantity control is custom.
-* **End-of-session report contents** beyond "what the player missed." The mechanism exists — `history` accumulates every round and `nextRound` reaches `gameOver` — but the contents are undefined.
 * **Rule list scope.** Whether the rule picker eventually lists every WCAG 2.2 AA success criterion, or only those introduced so far. `WCAG_RULES` currently holds only the four Phase 1 criteria; that is the current state, not a decision.
 * **Grouping threshold.** The rule count at which the picker switches from a flat list to `<fieldset>`/`<legend>` groups by principle, and at which the filter field appears.
