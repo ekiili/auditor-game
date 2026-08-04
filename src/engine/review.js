@@ -41,10 +41,18 @@ export const MARK_WEIGHTS = Object.freeze({
 export const HEAVY_MARK_MIN_SIZE = 24
 
 /**
- * Whether a round went flawlessly: nothing missed and nothing wrongly flagged.
+ * Whether a round went flawlessly: nothing missed, nothing wrongly flagged, and
+ * nothing caught under a criterion other than its primary one.
  *
- * A correct empty submission on a clean round qualifies — all three arrays are
+ * A correct empty submission on a clean round qualifies — all four arrays are
  * empty, and reporting a compliant component as compliant is the right answer.
+ *
+ * A defensible catch scores what an exact one scores and still bars this. The
+ * two facts are not in tension: the player loses nothing on the scoreboard, and
+ * what they lose is the claim that every violation was named under its sharpest
+ * criterion — which is the distinction the overlap model exists to teach. If
+ * this returned true for a defensible round, there would be no reason left to
+ * learn it.
  *
  * Deliberately **not** the same question as the review's "Perfect!" heading,
  * which additionally requires something caught because it labels a populated
@@ -54,7 +62,11 @@ export const HEAVY_MARK_MIN_SIZE = 24
  */
 export function isFlawlessRound(result) {
   if (!result) return false
-  return result.falseNegatives.length === 0 && result.falsePositives.length === 0
+  return (
+    result.falseNegatives.length === 0 &&
+    result.falsePositives.length === 0 &&
+    result.defensible.length === 0
+  )
 }
 
 /**
@@ -65,6 +77,12 @@ export function isFlawlessRound(result) {
  *
  * An element flagged under the wrong rule carries both a false positive and a
  * false negative, and therefore reads as missed.
+ *
+ * A defensible catch resolves its violation, so the element it sits on is
+ * caught in exactly the sense the other catches are. It joins that tier rather
+ * than forming one of its own: a mark reports an element's state, and "found"
+ * is the whole of that state — which criterion the player named is a property
+ * of the finding, and the findings list is where a finding is read.
  */
 export function deriveOutcomes(result) {
   if (!result) return {}
@@ -72,6 +90,7 @@ export function deriveOutcomes(result) {
   const outcomes = {}
   for (const guess of result.falsePositives) outcomes[guess.target] = OUTCOMES.FLAGGED_IN_ERROR
   for (const guess of result.truePositives) outcomes[guess.target] = OUTCOMES.CAUGHT
+  for (const entry of result.defensible) outcomes[entry.guess.target] = OUTCOMES.CAUGHT
   for (const violation of result.falseNegatives) outcomes[violation.target] = OUTCOMES.MISSED
   return outcomes
 }

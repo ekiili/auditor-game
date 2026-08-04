@@ -42,6 +42,14 @@ function ruleLabel(ruleId) {
   return rule ? rule.shortLabel : ruleId
 }
 
+// The criterion by number and official name, the way the rule picker writes it.
+// The sharper rule is named this way rather than by its plain-language label
+// because it is the thing the player is being pointed at looking up.
+function ruleIdAndName(ruleId) {
+  const rule = WCAG_RULES.find((entry) => entry.id === ruleId)
+  return rule ? `${rule.id} · ${rule.name}` : ruleId
+}
+
 // The same two-part naming the findings list uses, so a round recalled here
 // reads in the terms the player met it in.
 function findingLine(auditTargets, finding) {
@@ -58,6 +66,35 @@ function Findings({ heading, findings, auditTargets, headingClasses, bodyClasses
         {findings.map((finding) => (
           <li key={`${finding.ruleId}::${finding.target}`}>
             {findingLine(auditTargets, finding)}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+// The third grouping an expanded row can carry, and the only one that reports a
+// success. A round can lose "Perfect!" to nothing but a defensible catch, and a
+// row that dropped the badge while listing no reason for it would read as a
+// scoring error.
+//
+// The heading is an observation, not a fault: these violations were found, and
+// found under a criterion that genuinely covers them. Each entry names the rule
+// the player logged, in the same form the other two groupings use, and then the
+// sharper one — which is the whole of what separates this from an exact catch.
+// Why it is sharper is the review's to explain, and it has the room; this is a
+// debrief line.
+function DefensibleFindings({ findings, auditTargets }) {
+  if (findings.length === 0) return null
+
+  return (
+    <div className="mt-2 first:mt-0">
+      <h4 className="text-sm font-semibold text-emerald-900">Caught under a different rule</h4>
+      <ul className="mt-1 flex flex-col gap-1 text-sm text-emerald-900">
+        {findings.map((entry) => (
+          <li key={`${entry.guess.ruleId}::${entry.guess.target}`}>
+            {findingLine(auditTargets, entry.guess)}
+            <span className="block">Sharper rule — {ruleIdAndName(entry.primaryRuleId)}</span>
           </li>
         ))}
       </ul>
@@ -164,6 +201,13 @@ function SessionReport({ history, auditTargets, score, onRestart, restartRef }) 
                         auditTargets={auditTargets}
                         headingClasses="text-amber-900"
                         bodyClasses="text-amber-900"
+                      />
+                      {/* Last, for the reason the findings list puts the caught
+                          panel last: the instructive content comes first and the
+                          player's successes close the row. */}
+                      <DefensibleFindings
+                        findings={round.defensible}
+                        auditTargets={auditTargets}
                       />
                     </>
                   )}

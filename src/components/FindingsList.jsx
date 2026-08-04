@@ -94,7 +94,20 @@ const SECTIONS = [
   {
     outcome: OUTCOMES.CAUGHT,
     heading: 'Violations you caught',
-    entriesOf: (result) => result.truePositives,
+    // Both kinds of catch, in one section. A defensible answer is professionally
+    // correct and belongs among the player's successes; a panel of its own would
+    // present a correct answer as a category of failure. Exact catches first,
+    // then defensible ones — an order, not a ranking, and the only thing that
+    // separates them once they are on screen is the extra line one of them
+    // carries.
+    entriesOf: (result) => [
+      ...result.truePositives,
+      ...result.defensible.map((entry) => ({
+        ...entry.guess,
+        primaryRuleId: entry.primaryRuleId,
+        remark: entry.remark,
+      })),
+    ],
     carriesEvidence: false,
     panel: 'rounded-lg border border-emerald-700 bg-emerald-50 p-4',
     headingClasses: 'text-base font-semibold text-emerald-900',
@@ -133,7 +146,18 @@ function Section({ section, findings, auditTargets, snapshot, selectedTarget, on
       <ul className="mt-2 flex flex-col">
         {findings.map((finding, index) => {
           const isSelected = finding.target === selectedTarget
+          // The rule the player actually logged, in every section. A defensible
+          // entry names its own answer at the top and the sharper one below;
+          // relabelling the top line with the primary rule would tell the
+          // player they logged something they did not.
           const rule = ruleFor(finding.ruleId)
+          // Present only on a defensible entry, which is the only thing that
+          // carries a remark. Falls back to the bare criterion number if the
+          // rule is not in the table, exactly as the top line does.
+          const primaryRule = finding.remark ? ruleFor(finding.primaryRuleId) : null
+          const sharperRule = primaryRule
+            ? `${primaryRule.id} · ${primaryRule.name}`
+            : finding.primaryRuleId
           // Both sides of the snapshot, for this element only. `null` is a
           // legitimate focus value and is passed through as one.
           const readout = snapshot?.elements?.[finding.target] ?? null
@@ -168,6 +192,27 @@ function Section({ section, findings, auditTargets, snapshot, selectedTarget, on
                 {rule && <p className="mt-1 px-3 text-sm">{rule.description}</p>}
 
                 {evidence && <p className="mt-1 px-3 text-sm font-medium">{evidence}</p>}
+
+                {/* The one line a defensible entry carries beyond its
+                    neighbours — the same structural position and the same
+                    weight the flagged-in-error reading occupies, because both
+                    do the same job: the rule above explains the criterion, and
+                    this explains this particular verdict.
+
+                    The remark is rendered exactly as the level authored it.
+                    Nothing here composes, trims or rewords it; the only text
+                    added is the sharper rule's own identifier and name, which
+                    the remark refers to but does not spell out.
+
+                    No colour of its own. The wrapper owns the foreground in
+                    both the resting and the selected state, so this line cannot
+                    end up with one state's text over the other's background. */}
+                {finding.remark && (
+                  <p className="mt-1 px-3 text-sm font-medium">
+                    <span className="font-semibold">Sharper rule — {sharperRule}:</span>{' '}
+                    {finding.remark}
+                  </p>
+                )}
               </div>
             </li>
           )
@@ -185,11 +230,18 @@ function FindingsList({ result, auditTargets, snapshot, selectedTarget, onSelect
     findings: section.entriesOf(result),
   })).filter(({ findings }) => findings.length > 0)
 
-  // Nothing missed, nothing flagged in error, and something caught. The same
-  // screen emphasised, not a separate one.
+  // Nothing missed, nothing flagged in error, nothing caught under a criterion
+  // other than its primary one, and something caught. The same screen
+  // emphasised, not a separate one.
+  //
+  // The defensible clause is what keeps this heading agreeing with the one on
+  // the end-of-session report. Without it a round with one exact catch and one
+  // defensible catch would be headed "Perfect!" here and listed as imperfect
+  // there, for the same round.
   const isPerfect =
     result.falseNegatives.length === 0 &&
     result.falsePositives.length === 0 &&
+    result.defensible.length === 0 &&
     result.truePositives.length > 0
 
   // All three arrays empty can only mean an empty Truth met with an empty log.
