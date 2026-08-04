@@ -1,4 +1,4 @@
-> **CLAUDE.md — v20 (2026-08-03)**
+> **CLAUDE.md — v21 (2026-08-04)**
 > This file is maintained by the Planner. Do not edit, append to, or
 > reorganize it. If you find it incomplete, ambiguous, or contradicted by
 > your task prompt, do not resolve the conflict yourself — report the
@@ -183,13 +183,22 @@ Where a contract describes code that already exists, the code is authoritative a
 ### Violation entry
 
 ```js
-{ ruleId: string, target: string }
+{
+  ruleId: string,
+  target: string,
+  alsoDefensible: [ { ruleId: string, remark: string } ]
+}
 ```
 
-* `ruleId` — a WCAG criterion number as a string, sourced from `RULE_IDS` in `src/data/wcagRules.js`. Never written as a literal outside that file.
+* `ruleId` — the **primary** rule: the sharpest criterion for this failure. A WCAG criterion number as a string, sourced from `RULE_IDS` in `src/data/wcagRules.js`. Never written as a literal outside that file.
 * `target` — an audit target identifier, matching a `data-audit-target` attribute value.
+* `alsoDefensible` — other criteria a competent auditor could log this same failure under. The array may be empty; **the key is always present.** Each member's `ruleId` is a `RULE_IDS` value and its `remark` is player-facing text.
 
-Produced by `saboteurEngine.js`. Consumed by a level's `applySabotage` and by `scoring.js`.
+**Specified, not yet implemented** — `alsoDefensible` does not exist in the code yet.
+
+Produced by `saboteurEngine.js`, which carries `alsoDefensible` through from the `sabotageMap` entry unchanged. The engine selects violations; it does not compose or edit this field.
+
+Consumed by a level's `applySabotage` — which ignores `alsoDefensible` entirely, since it changes nothing about how a component renders — and by `scoring.js`.
 
 An **array** of violation entries is the round's Truth. An empty array is valid and means a clean round — it is not an error condition and must not be treated as one.
 
@@ -199,7 +208,7 @@ An **array** of violation entries is the round's Truth. An empty array is valid 
 { ruleId: string, target: string }
 ```
 
-Structurally identical to a Violation entry, and deliberately so: comparison is field equality, with no translation step between the two.
+A Guess entry holds exactly the two fields that are compared, and a Violation entry's first two fields are the same two, in the same form. Comparison is still field equality with no translation step. `isSamePair` reads `ruleId` and `target` only, and the Violation entry's third field is invisible to it.
 
 Produced by the Inspector. Consumed by `scoring.js` and by the reducer's `addGuess` / `removeGuess`.
 
@@ -229,11 +238,21 @@ An **`auditTargets` entry**:
 * `id` — matches a `data-audit-target` attribute value.
 * `label` — player-facing text.
 
-A **`sabotageMap` entry** is identical to a Violation entry:
+A **`sabotageMap` entry** carries the same three fields as a Violation entry:
 
 ```js
-{ ruleId: string, target: string }
+{
+  ruleId: string,
+  target: string,
+  alsoDefensible: [ { ruleId: string, remark: string } ]
+}
 ```
+
+`alsoDefensible` is authored here, per sabotage, and is the level's statement about which criteria overlap on this particular failure. It is not derived from anything and must not be computed at runtime: whether two criteria genuinely overlap on a given element is a judgement, not a property of the rule data.
+
+A `remark` is written per (sabotage, alternative) pair rather than per rule, because the reason one criterion is sharper than another depends on what was broken and where.
+
+**Specified, not yet implemented.**
 
 **The element identifier is called `id` in `auditTargets` and `target` everywhere else.** This is recorded as fact. Code moving between the two translates explicitly and at one visible point. Do not rename either side to match the other.
 
@@ -380,6 +399,7 @@ Returned by `scoreRound` in `src/engine/scoring.js`, stored in `lastResult` and 
 ```js
 {
   truePositives: [],
+  defensible: [],
   falsePositives: [],
   falseNegatives: [],
   score: number,
@@ -387,7 +407,27 @@ Returned by `scoreRound` in `src/engine/scoring.js`, stored in `lastResult` and 
 }
 ```
 
-The three arrays hold **Guess entries** for the first two and **Violation entries** for the third. `wasCompliant` records whether the round's Truth was empty.
+`truePositives` and `falsePositives` hold **Guess entries**. `falseNegatives` holds **Violation entries**. `wasCompliant` records whether the round's Truth was empty.
+
+`defensible` holds one object per guess that named an overlapping criterion rather than the primary one:
+
+```js
+{ guess: Guess entry, primaryRuleId: string, remark: string }
+```
+
+`primaryRuleId` and `remark` are copied from the violation the guess resolved, so the findings list can state the sharper answer and explain it without reaching back into the level.
+
+**Specified, not yet implemented.**
+
+**Every guess falls into exactly one of three buckets, tested in this order:**
+
+1. Both fields match a violation — a true positive.
+2. The `target` matches a violation and the `ruleId` appears in that violation's `alsoDefensible` — defensible.
+3. Neither — a false positive.
+
+**A violation is resolved by the first guess that catches it, exactly or defensibly, and a resolved violation never appears in `falseNegatives`.** A player who logs both the primary rule and a defensible one against the same violation has caught it once; the second guess is neither a second catch nor a false alarm, and is discarded.
+
+The classification lives in **`classifyGuess` in `src/engine/scoring.js`**, beside `isSamePair` and importing it. `isSamePair` itself is unchanged and remains the only definition of exact-pair equality — the reducer's duplicate check still uses it and must not be pointed at the new function.
 
 This contract describes what scoring produces. The evidence the review explains it with is the **Round snapshot** below.
 
@@ -470,7 +510,7 @@ The app must be 100% playable completely offline. No CDNs, no remote fonts, no i
 **Same-origin requests for files the repo ships are not a violation.** The build emitting a font, a stylesheet or an image and the page requesting it back is ordinary behaviour. A task prompt demanding literally zero requests is over-stating this guardrail — report the over-statement rather than contorting the build to satisfy it.
 
 **2. Client-Side Only.**
-No backend, no database, no authentication, no SSR, no Next.js server components, no serverless functions. Build output is plain static files deployable to GitHub Pages with zero backend. `vite.config.js` sets `base: '/audit-game/'` to match the repo name — do not remove it. The repo name still reflects the old project name; the base path is not a discrepancy.
+No backend, no database, no authentication, no SSR, no Next.js server components, no serverless functions. Build output is plain static files deployable to GitHub Pages with zero backend. `vite.config.js` sets `base: '/auditor-game/'` to match the repo name — do not remove it.
 
 **3. No Persistence of Any Kind.**
 State lives in React memory only. No `localStorage`, `sessionStorage`, `IndexedDB`, or cookies. A page refresh resets the session — this is intended, not a bug to fix.
@@ -537,6 +577,11 @@ Recorded here so they are not re-litigated. Full reasoning is in `docs/decisions
 A decision that has a **shape** belongs in Data Contracts, not here. This section holds only choices with no shape — behaviour, policy, and rationale.
 
 * **Scoring:** +1 per true positive, −1 per false positive, −1 per false negative. A correct empty submission on a clean round scores +1. Round scores may go negative and are not clamped. Values are provisional and defined as named constants for tuning.
+* **A defensible answer scores full marks but bars a perfect round.** Where a sabotage carries overlapping criteria, a player who logs one of them rather than the primary rule scores as a true positive: the answer is professionally correct, and marking it wrong would teach something false with confidence, which is the worst failure available to a training tool. But the round is not recorded as "Perfect!", because scoring the two as fully equivalent removes any reason to learn the distinction — which is the thing the overlap model exists to teach.
+  * **"Perfect!" therefore means:** every violation caught under its primary rule, nothing flagged in error, and nothing caught defensibly. A correct empty submission on a clean round still earns it. This amends the definition recorded under the end-of-session report; it does not change where or how the report derives it.
+* **A defensible finding is read in the caught section, not a section of its own.** The element genuinely is broken and the player genuinely found it, so the finding belongs among their successes and is presented as one. The entry carries one line more than its neighbours — the sharper rule and why it is sharper — in the same way a flagged-in-error entry carries the measurement that explains its verdict. A fourth panel would present a correct answer as a category of failure.
+  * **The remark is written in good faith and leaves the player feeling credited.** It affirms the answer before it sharpens it. It never opens by naming what the player got wrong, because nothing was wrong.
+* **A defensible catch marks the element `caught`.** Review marks describe an element's overall state, and an element whose violation was found is resolved. No fourth outcome, no fourth line style: dashed and dotted are already close at small sizes, and the findings list remains the authoritative statement of what a mark means.
 * **No "Declare Compliant" control.** Submit means "I have logged every violation I found." An empty log is a valid answer, guarded by a confirmation step.
 * **The submit confirmation is an inline panel, not a modal.** It sits inside the tools region, directly beneath the Submit control. It does not overlay or tint the page, does not block interaction elsewhere, and participates in normal layout with no stacking of its own. Because it is not a dialog, the browser supplies none of the behaviour a dialog would: moving focus into the panel when it opens, dismissal on Escape, and returning focus to the Submit control on cancel are each built deliberately. Losing them would trade a visual complaint for an accessibility failure, in the one project that cannot afford one.
   * **Its placement outside the card's column is load-bearing, not cosmetic.** The card lives in a column of its own, and no column's width or height responds to another's contents, so nothing added inside the tools region can move the card. Had the panel been placed near the card, opening it would shift the element geometry captured at submission — and that geometry is the evidence the review explains false alarms with. Any later relocation must preserve this property.
@@ -600,7 +645,7 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 * **At game over the card is gone, not inert.** When `status` reaches `'gameOver'` the level component is not rendered at all, and the end-of-session report spans the full width of the layout with no empty column where the card stood. A fully working card beside a summary of a finished session invites an audit that can no longer be logged. This is distinct from `'reviewing'`, where the card stays present because the marks on it are half the result.
 * **The end-of-session report reads as a debrief, not a spreadsheet.** It is the last thing the player sees, and a dense grid of round numbers and scores would end the session on the least instructive thing about it. Four decisions follow from that:
   * **One row per round, each expandable** to what was missed and what was wrongly flagged in that round. The detail is available without being imposed on a player who only wants the shape of their session.
-  * **"Perfect!" means a flawless submission** — every violation present found, nothing flagged in error — and a correct empty submission on a clean round earns it too. Recognising a clean page is a real skill and is not treated as a lesser result.
+  * **"Perfect!" means a flawless submission** — every violation present found, nothing flagged in error — and a correct empty submission on a clean round earns it too. Recognising a clean page is a real skill and is not treated as a lesser result. See the defensible-answer decision above for the amended definition.
   * **The session total sits at the bottom**, after the rounds rather than above them, so the report reads as an account of what happened before it reads as a verdict.
   * **Its own restart control returns to a fresh session** through `restartSession`.
 * **The guess log shows what the player logged and nothing else.** No correctness marking, no counts against Truth, no colour or icon distinguishing a real violation from a decoy. It has no access to Truth and must not acquire any.
@@ -612,6 +657,8 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 * **Truth** — the violations the Saboteur actually injected this round.
 * **Guesses** — what the player has logged.
 * **True Positive / False Positive / False Negative** — the three scoring outcomes.
+* **Primary rule** — the sharpest criterion for a given sabotage; the `ruleId` of its Violation entry.
+* **Defensible** — a guess naming a criterion listed in that violation's `alsoDefensible`. Correct, credited, and not the sharpest answer.
 * **Baseline** — a level component rendered with no props.
 * **Audit target** — an element the player can point at, identified by its `data-audit-target` value. Called `target` in every contract except `auditTargets`, where the field is named `id`.
 * **Run** — one session of ten rounds, ending at `'gameOver'` or at a restart.
