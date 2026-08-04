@@ -3,6 +3,7 @@ export const RULE_IDS = Object.freeze({
   LABELS_OR_INSTRUCTIONS: '3.3.2',
   FOCUS_VISIBLE: '2.4.7',
   TARGET_SIZE_MIN: '2.5.8',
+  NAME_ROLE_VALUE: '4.1.2',
 })
 
 export const PRINCIPLES = Object.freeze({
@@ -77,6 +78,24 @@ export const WCAG_RULES = Object.freeze([
       'button size',
       'click area',
       'pointer',
+    ]),
+  }),
+  Object.freeze({
+    id: RULE_IDS.NAME_ROLE_VALUE,
+    name: 'Name, Role, Value',
+    shortLabel: 'Controls must announce what they are',
+    description:
+      'When a control does not expose its name, role and value, a screen reader can announce that something is there but not what it is or what it does.',
+    principle: PRINCIPLES.ROBUST,
+    keywords: Object.freeze([
+      'name',
+      'role',
+      'value',
+      'accessible name',
+      'assistive technology',
+      'screen reader',
+      'aria',
+      'unnamed',
     ]),
   }),
 ])

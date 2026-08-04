@@ -14,6 +14,14 @@ function shuffle(entries, random) {
   return result
 }
 
+// Sabotage map entries are emitted whole, so a Violation entry is the entry the
+// level authored — `alsoDefensible` included, exactly as written. The engine
+// chooses which failures occur; it has no opinion on which criteria overlap on
+// them, and composing or trimming that field here would put a judgement about
+// one level inside a module that knows about none.
+//
+// This passthrough is why nothing below mentions `alsoDefensible`: reshaping an
+// entry into a fresh object is what would break it, not leaving it alone.
 export function selectViolations(level, random = Math.random) {
   if (random() < COMPLIANT_CHANCE) return []
 
