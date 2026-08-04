@@ -10,7 +10,7 @@ import { useId } from 'react'
 // Stacking the two states names the combination directly, rather than
 // out-specifying the hover rule.
 const OPTION_CLASSES =
-  'flex min-h-11 cursor-pointer items-center rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 peer-hover:bg-gray-100 peer-checked:border-indigo-700 peer-checked:bg-indigo-700 peer-checked:text-white peer-checked:peer-hover:border-indigo-800 peer-checked:peer-hover:bg-indigo-800 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-indigo-700'
+  'flex min-h-11 cursor-pointer items-center rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 peer-hover:bg-indigo-50 peer-hover:text-indigo-900 peer-checked:border-indigo-700 peer-checked:bg-indigo-700 peer-checked:text-white peer-checked:peer-hover:border-indigo-800 peer-checked:peer-hover:bg-indigo-800 peer-checked:peer-hover:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-indigo-700'
 
 function TargetList({ auditTargets, selectedTarget, onSelect }) {
   const groupName = useId()

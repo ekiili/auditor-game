@@ -31,13 +31,24 @@ import {
 const [currentLevel] = levels
 
 // Keyed by `status`; an absent key means the control is available.
+//
+// `gameOver` has no entry because the toggle is not rendered there at all — a
+// reason that can never be shown would be a claim about the interface that is
+// no longer true.
 const TOGGLE_UNAVAILABLE_REASONS = {
   reviewing: 'Not available while you review this round.',
-  gameOver: 'Not available once the run is over.',
 }
 
-const BUTTON_CLASSES =
-  'inline-flex min-h-11 items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700'
+// Purple is the interface's interactive and selected colour, and the two tiers
+// are how strongly a control claims it. A primary control carries the fill; a
+// secondary one carries the colour as text on white and keeps the neutral
+// border. Every state sets its foreground and its background together, so no
+// combination can arrive half applied.
+const PRIMARY_BUTTON_CLASSES =
+  'inline-flex min-h-11 items-center rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700'
+
+const SECONDARY_BUTTON_CLASSES =
+  'inline-flex min-h-11 items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:border-indigo-700 hover:bg-indigo-50 hover:text-indigo-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700'
 
 // From lg up the tools are two columns side by side, so the player never has
 // to scroll between choosing an element and reading what it measures. Below lg
@@ -85,6 +96,18 @@ const TARGETS_COLUMN_CLASSES =
 
 const FLUID_COLUMN_CLASSES =
   'contents lg:relative lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:gap-6 lg:overflow-y-auto'
+
+// What the Audit Mode toggle has to clear to sit over the card rather than
+// over the middle of the screen: the tools region plus the gap before it,
+// 39.5rem + 1.5rem. Derived from the two numbers above and kept beside them so
+// there is one place to change if either moves.
+//
+// The toggle's row is full width, so padding this much off its right edge
+// leaves a content box whose centre is exactly the centre of the card's
+// column — including between 1024px and 1152px, where that column is still
+// fluid and no fixed width would track it. With the tools absent there is
+// nothing to clear and the card is centred on the row already.
+const TOGGLE_CLEARS_TOOLS = 'lg:pr-164'
 
 function App() {
   const [state, dispatch] = useReducer(gameReducer, INITIAL_STATE)
@@ -362,7 +385,7 @@ function App() {
   // region below it is what makes the columns absorb the loss by scrolling
   // internally rather than by pushing the document taller.
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-gray-50">
+    <div className="flex h-screen flex-col overflow-hidden bg-slate-200">
       <TopStrip
         levelName={currentLevel.name}
         round={state.round}
@@ -372,12 +395,20 @@ function App() {
       />
 
       <main className="flex w-full min-h-0 flex-1 flex-col items-center gap-6 p-6">
-        <AuditModeToggle
-          ref={auditModeRef}
-          auditMode={state.auditMode}
-          onToggle={() => dispatch(toggleAuditMode())}
-          unavailableReason={toggleUnavailableReason}
-        />
+        {/* Absent at game over, not disabled and not hidden. The decision that
+            keeps it present-but-unavailable exists so the row above the card
+            cannot change height and shift the card; at game over the card is
+            not rendered, so there is nothing for it to protect and a dead
+            control on the debrief is just something else to tab past. */}
+        {!isGameOver && (
+          <AuditModeToggle
+            ref={auditModeRef}
+            auditMode={state.auditMode}
+            onToggle={() => dispatch(toggleAuditMode())}
+            unavailableReason={toggleUnavailableReason}
+            clearanceClasses={showChromeColumn ? TOGGLE_CLEARS_TOOLS : ''}
+          />
+        )}
 
         {/* min-h-0 lets the columns shrink below their content height, which is
             what makes their own overflow-y-auto engage instead of pushing the
@@ -495,7 +526,7 @@ function App() {
                         type="button"
                         ref={submitRef}
                         onClick={handleSubmit}
-                        className={BUTTON_CLASSES}
+                        className={PRIMARY_BUTTON_CLASSES}
                       >
                         Submit audit
                       </button>
@@ -526,7 +557,7 @@ function App() {
                             ref={cancelConfirmRef}
                             onClick={closeConfirm}
                             aria-describedby={confirmDescriptionId}
-                            className={BUTTON_CLASSES}
+                            className={SECONDARY_BUTTON_CLASSES}
                           >
                             Cancel
                           </button>
@@ -537,7 +568,7 @@ function App() {
                             type="button"
                             onClick={handleConfirmSubmit}
                             aria-describedby={confirmDescriptionId}
-                            className={BUTTON_CLASSES}
+                            className={PRIMARY_BUTTON_CLASSES}
                           >
                             Submit with nothing logged
                           </button>
@@ -571,7 +602,7 @@ function App() {
                       type="button"
                       ref={nextRoundRef}
                       onClick={handleNextRound}
-                      className={BUTTON_CLASSES}
+                      className={PRIMARY_BUTTON_CLASSES}
                     >
                       Next round
                     </button>

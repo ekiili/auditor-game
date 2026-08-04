@@ -34,15 +34,22 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 // strip's height is fixed and had the room already.
 
 const STRIP_BUTTON_CLASSES =
-  'inline-flex min-h-11 items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100 aria-expanded:border-indigo-700 aria-expanded:bg-indigo-700 aria-expanded:text-white aria-expanded:hover:border-indigo-800 aria-expanded:hover:bg-indigo-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700'
+  'inline-flex min-h-11 items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:border-indigo-700 hover:bg-indigo-50 hover:text-indigo-800 aria-expanded:border-indigo-700 aria-expanded:bg-indigo-700 aria-expanded:text-white aria-expanded:hover:border-indigo-800 aria-expanded:hover:bg-indigo-800 aria-expanded:hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700'
 
 // The expanded fill and the hover fill carry equal specificity, so source
 // order alone would decide which one an expanded-and-hovered control got —
-// and white text on the pale hover grey is unreadable. The combination is
-// named directly above rather than out-specified.
+// and white text on the pale hover tint is unreadable. The combination is
+// named directly above rather than out-specified, and it now names its
+// foreground as well as its background: with the resting text purple, the
+// expanded-and-hovered state has two rules to lose rather than one.
 
 const PANEL_BUTTON_CLASSES =
-  'inline-flex min-h-11 items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700'
+  'inline-flex min-h-11 items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:border-indigo-700 hover:bg-indigo-50 hover:text-indigo-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700'
+
+// The restart confirmation's confirming control is the action on that
+// panel, so it carries the fill.
+const PANEL_PRIMARY_BUTTON_CLASSES =
+  'inline-flex min-h-11 items-center rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700'
 
 const PANEL_CLASSES =
   'absolute top-full right-6 z-10 mt-2 max-h-[70vh] w-96 max-w-[calc(100vw-3rem)] overflow-y-auto rounded-lg border-2 border-indigo-700 bg-white p-4 shadow-lg'
@@ -231,7 +238,7 @@ function TopStrip({ levelName, round, totalRounds, score, onRestart }) {
               type="button"
               onClick={handleConfirmRestart}
               aria-describedby={restartDescriptionId}
-              className={PANEL_BUTTON_CLASSES}
+              className={PANEL_PRIMARY_BUTTON_CLASSES}
             >
               Restart the run
             </button>

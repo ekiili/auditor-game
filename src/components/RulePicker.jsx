@@ -15,13 +15,17 @@ import { isSamePair } from '../engine/scoring.js'
 // Stacking the two states names the combination directly, rather than
 // out-specifying the hover rule.
 const OPTION_CLASSES =
-  'flex min-h-11 cursor-pointer flex-col justify-center rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 peer-hover:bg-gray-100 peer-checked:border-indigo-700 peer-checked:bg-indigo-700 peer-checked:text-white peer-checked:peer-hover:border-indigo-800 peer-checked:peer-hover:bg-indigo-800 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-indigo-700'
+  'flex min-h-11 cursor-pointer flex-col justify-center rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 peer-hover:bg-indigo-50 peer-hover:text-indigo-900 peer-checked:border-indigo-700 peer-checked:bg-indigo-700 peer-checked:text-white peer-checked:peer-hover:border-indigo-800 peer-checked:peer-hover:bg-indigo-800 peer-checked:peer-hover:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-indigo-700'
 
 // aria-disabled rather than the native attribute: a natively disabled button
 // leaves the tab order, so the describedby text explaining why it is
 // unavailable can never be reached at the moment the player needs it.
+//
+// Logging is this panel's action, so it carries the fill. The unavailable
+// state names its own foreground and background together and repeats both
+// under hover, so neither half of the resting fill can survive into it.
 const LOG_BUTTON_CLASSES =
-  'inline-flex min-h-11 items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700 aria-disabled:cursor-not-allowed aria-disabled:border-gray-200 aria-disabled:text-gray-500 aria-disabled:hover:bg-white'
+  'inline-flex min-h-11 items-center rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700 aria-disabled:cursor-not-allowed aria-disabled:bg-gray-100 aria-disabled:text-gray-700 aria-disabled:hover:bg-gray-100 aria-disabled:hover:text-gray-700'
 
 function resolveLogState(selectedTarget, selectedRule, guesses) {
   if (selectedTarget === null) {

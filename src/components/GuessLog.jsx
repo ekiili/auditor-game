@@ -7,7 +7,7 @@ import { WCAG_RULES } from '../data/wcagRules.js'
 // counts, no colour or icon distinguishing one entry from another.
 
 const REMOVE_BUTTON_CLASSES =
-  'flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700'
+  'flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-gray-600 hover:bg-indigo-50 hover:text-indigo-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700'
 
 function GuessLog({ guesses, auditTargets, onRemove }) {
   const titleId = useId()

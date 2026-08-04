@@ -11,9 +11,18 @@ import { isFlawlessRound } from '../engine/review.js'
 // ten right-aligned figures read as a spreadsheet even with no rules drawn
 // between them. Rows are separated the way findings are separated inside a
 // review panel: spacing and one hairline, never a bordered card each.
+//
+// That spacing is 6px either side of the hairline rather than the 8px a
+// findings panel uses, and the difference is not arbitrary. A finding there is
+// a multi-line block, where the gap separates one paragraph from the next.
+// Here every row is a single 44px control whose own min-height already leaves
+// 12px of clear space above and below its text, so 8px more was separating
+// something that was already separated — the row list is the only part of this
+// report whose height multiplies by the round count, and at ten rounds it was
+// the 22px that put the restart control below the fold at 1280.
 
 const ROW_BUTTON_CLASSES =
-  'flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700'
+  'flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-gray-900 hover:bg-indigo-50 hover:text-indigo-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700'
 
 // Signed, so a round that lost a point says so without needing a colour to
 // carry it. Zero is written plain: `+0` reads as a gain that was not one.
@@ -112,7 +121,7 @@ function SessionReport({ history, auditTargets, score, onRestart, restartRef }) 
             return (
               <li
                 key={index}
-                className={index === 0 ? undefined : 'mt-2 border-t border-gray-200 pt-2'}
+                className={index === 0 ? undefined : 'mt-1.5 border-t border-gray-200 pt-1.5'}
               >
                 {/* A heading wrapping the control, so the rounds are reachable
                     as a list of headings and not only by tabbing. The button is
@@ -174,7 +183,7 @@ function SessionReport({ history, auditTargets, score, onRestart, restartRef }) 
           type="button"
           ref={restartRef}
           onClick={onRestart}
-          className="inline-flex min-h-11 items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700"
+          className="inline-flex min-h-11 items-center rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700"
         >
           Start a new run
         </button>
