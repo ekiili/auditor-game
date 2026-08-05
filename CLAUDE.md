@@ -1,4 +1,4 @@
-> **CLAUDE.md — v23 (2026-08-05)**
+> **CLAUDE.md — v24 (2026-08-05)**
 > This file is maintained by the Planner. Do not edit, append to, or
 > reorganize it. If you find it incomplete, ambiguous, or contradicted by
 > your task prompt, do not resolve the conflict yourself — report the
@@ -267,10 +267,16 @@ Returned by a level's `applySabotage`. Spread into the level `Component` over it
 For `ecommerce-checkout`, a clean round returns:
 
 ```js
-{ labelMode: 'programmatic', focusStyle: 'visible', removeButtonSize: 'default' }
+{
+  labelMode: 'programmatic',
+  focusStyle: 'visible',
+  removeButtonSize: 'default',
+  removeButtonLabel: 'described',
+  titleMarkup: 'heading'
+}
 ```
 
-**Key absence is load-bearing.** Three props always carry an explicit value, compliant or otherwise. `imageAlt` behaves differently:
+**Key absence is load-bearing.** Five props always carry an explicit value, compliant or otherwise. `imageAlt` behaves differently:
 
 * Rule 1.1.1 not injected — the `imageAlt` key is **omitted entirely**, so the component's own `DEFAULTS` survives the spread and supplies the compliant alt text.
 * Rule 1.1.1 injected — the key is **present with the value `undefined`**, which overrides the default and removes the alt text.
@@ -482,6 +488,21 @@ Returned by `deriveMarks` in `src/engine/review.js`, consumed by `ReviewMarks.js
 
 `lineStyle` and `weight` are separate axes and neither is derived from the other. `lineStyle` states the outcome; `weight` states both that an outcome is `caught` and, at render time, whether the finding is selected.
 
+### Evidence entry
+
+Returned by `deriveEvidence` in `src/engine/review.js`, rendered by `FindingsList.jsx`:
+
+```js
+{ kind: string, ...facts }
+```
+
+* `kind` — a member of `EVIDENCE`, exported from `review.js`. That enumeration is authoritative and is the only place a kind is defined.
+* The remaining fields are the facts that kind's sentence needs, read from the **Round snapshot** and never measured at review time.
+
+**Every kind must be handled on both sides.** `review.js` produces kinds; `FindingsList.jsx` holds the text for them. A kind added on one side and unhandled on the other renders nothing, silently, with no error — which is the failure this section exists to prevent. A new kind ships with its text in the same task.
+
+`EVIDENCE.NONE` means the entry carries a rule description and no evidence line. It is a legitimate result, not a gap.
+
 ### Rule entry
 
 Each entry in `WCAG_RULES` in `src/data/wcagRules.js`:
@@ -598,6 +619,10 @@ A decision that has a **shape** belongs in Data Contracts, not here. This sectio
 * **A defensible finding is read in the caught section, not a section of its own.** The element genuinely is broken and the player genuinely found it, so the finding belongs among their successes and is presented as one. The entry carries one line more than its neighbours — the sharper rule and why it is sharper — in the same way a flagged-in-error entry carries the measurement that explains its verdict. A fourth panel would present a correct answer as a category of failure.
   * **The remark is written in good faith and leaves the player feeling credited.** It affirms the answer before it sharpens it. It never opens by naming what the player got wrong, because nothing was wrong.
 * **A defensible catch marks the element `caught`.** Review marks describe an element's overall state, and an element whose violation was found is resolved. No fourth outcome, no fourth line style: dashed and dotted are already close at small sizes, and the findings list remains the authoritative statement of what a mark means.
+* **Where a criterion does not apply to an element, the review says so rather than reporting a measurement.** A false alarm is normally explained by the measurement showing the element passed. On an element the criterion does not govern, that measurement reads as though the element failed — the image with no accessible name, flagged under a rule about controls — which tells the player something true and lets them draw a false conclusion from it, directly beneath a heading saying they were wrong.
+  * **Non-applicability is derived, not enumerated.** The baseline is compliant by construction, so anything not injected this round is compliant. If an element appears to fail a criterion it was not sabotaged under, the only available explanation is that the criterion does not govern that element. No per-rule scope predicate is written, and no list of exempt elements is maintained: both would be a second statement of something the round's Truth already settles.
+  * **Each rule carries one sentence naming what it governs**, written once, shown whenever this case arises. Hand-written text for a specific pairing is added only where a generic sentence would mislead, and no such case is assumed in advance.
+  * The sentence names what the criterion covers. It never says the player failed to test something, and never implies the element is exempt from accessibility generally.
 * **No "Declare Compliant" control.** Submit means "I have logged every violation I found." An empty log is a valid answer, guarded by a confirmation step.
 * **The submit confirmation is an inline panel, not a modal.** It sits inside the tools region, directly beneath the Submit control. It does not overlay or tint the page, does not block interaction elsewhere, and participates in normal layout with no stacking of its own. Because it is not a dialog, the browser supplies none of the behaviour a dialog would: moving focus into the panel when it opens, dismissal on Escape, and returning focus to the Submit control on cancel are each built deliberately. Losing them would trade a visual complaint for an accessibility failure, in the one project that cannot afford one.
   * **Its placement outside the card's column is load-bearing, not cosmetic.** The card lives in a column of its own, and no column's width or height responds to another's contents, so nothing added inside the tools region can move the card. Had the panel been placed near the card, opening it would shift the element geometry captured at submission — and that geometry is the evidence the review explains false alarms with. Any later relocation must preserve this property.
@@ -715,6 +740,5 @@ Sabotage is random per page load. A single observation of a rendered level descr
 
 Genuinely unsettled. This list is authoritative; `docs/decisions.md` points here rather than maintaining its own copy. If a task requires one of these, stop and ask:
 
-* **Explaining exemptions.** A control excused by the standard — user-agent spinner arrows under 2.5.8, for instance — cannot be explained from a reading, because the exemption is not visible in the DOM. It needs written text per exemption. Phase 1 has none, since the quantity control is custom.
-* **Rule list scope.** Whether the rule picker eventually lists every WCAG 2.2 AA success criterion, or only those introduced so far. `WCAG_RULES` currently holds only the four Phase 1 criteria; that is the current state, not a decision.
-* **Grouping threshold.** The rule count at which the picker switches from a flat list to `<fieldset>`/`<legend>` groups by principle, and at which the filter field appears.
+* **Rule list scope.** Whether the rule picker eventually lists every WCAG 2.2 AA success criterion, or only those introduced so far. `WCAG_RULES` currently holds six criteria; that is the current state, not a decision.
+* **Grouping threshold.** The rule count at which the picker switches from a flat list to `<fieldset>`/`<legend>` groups by principle, and at which the filter field appears. Six does not reach it.
