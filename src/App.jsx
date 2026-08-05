@@ -70,7 +70,7 @@ const SECONDARY_BUTTON_CLASSES =
 // the card would have jumped sideways between the audit and the review of the
 // same round — the one moment the player is asked to compare them.
 const TOOLS_WRAPPER_CLASSES =
-  'relative flex w-full min-h-0 max-w-sm flex-1 flex-col gap-6 overflow-y-auto lg:w-158 lg:max-w-none lg:flex-none lg:flex-row lg:overflow-visible'
+  'relative flex w-full min-h-0 max-w-sm flex-1 flex-col gap-6 overflow-y-auto lg:w-242 lg:max-w-none lg:flex-none lg:flex-row lg:overflow-visible'
 
 // The end-of-run report has no card beside it. It used to answer that by
 // taking the whole row, which made a 2560px screen a 2512px surface with one
@@ -97,6 +97,9 @@ const TARGETS_COLUMN_CLASSES =
 const FLUID_COLUMN_CLASSES =
   'contents lg:relative lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:gap-6 lg:overflow-y-auto'
 
+const INSPECTOR_COLUMN_CLASSES =
+    'contents lg:relative lg:flex lg:w-72 lg:min-h-0 lg:shrink-0 lg:flex-col lg:gap-6 lg:overflow-y-auto'
+
 // What the Audit Mode toggle has to clear to sit over the card rather than
 // over the middle of the screen: the tools region plus the gap before it,
 // 39.5rem + 1.5rem. Derived from the two numbers above and kept beside them so
@@ -107,7 +110,7 @@ const FLUID_COLUMN_CLASSES =
 // column — including between 1024px and 1152px, where that column is still
 // fluid and no fixed width would track it. With the tools absent there is
 // nothing to clear and the card is centred on the row already.
-const TOGGLE_CLEARS_TOOLS = 'lg:pr-164'
+const TOGGLE_CLEARS_TOOLS = 'lg:pr-248'
 
 function App() {
   const [state, dispatch] = useReducer(gameReducer, INITIAL_STATE)
@@ -500,9 +503,11 @@ function App() {
                     />
                   </div>
 
-                  <div className={FLUID_COLUMN_CLASSES}>
+                  <div className={INSPECTOR_COLUMN_CLASSES}>
                     <ReadoutPanel targetId={state.selectedTarget} containerRef={canvasRef} />
+                  </div>
 
+                <div className={FLUID_COLUMN_CLASSES}>
                     <RulePicker
                       selectedTarget={state.selectedTarget}
                       selectedRule={state.selectedRule}
