@@ -1,5 +1,6 @@
 export const RULE_IDS = Object.freeze({
   NON_TEXT_CONTENT: '1.1.1',
+  INFO_AND_RELATIONSHIPS: '1.3.1',
   LABELS_OR_INSTRUCTIONS: '3.3.2',
   FOCUS_VISIBLE: '2.4.7',
   TARGET_SIZE_MIN: '2.5.8',
@@ -29,6 +30,24 @@ export const WCAG_RULES = Object.freeze([
       'graphic',
       'text alternative',
       'screen reader',
+    ]),
+  }),
+  Object.freeze({
+    id: RULE_IDS.INFO_AND_RELATIONSHIPS,
+    name: 'Info and Relationships',
+    shortLabel: 'Structure must be coded, not just styled',
+    description:
+      'Text that only looks like a heading is announced as ordinary text, so a screen reader user cannot jump between sections or tell where one begins.',
+    principle: PRINCIPLES.PERCEIVABLE,
+    keywords: Object.freeze([
+      'structure',
+      'heading',
+      'semantics',
+      'relationships',
+      'markup',
+      'list',
+      'outline',
+      'landmark',
     ]),
   }),
   Object.freeze({

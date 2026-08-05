@@ -4,6 +4,7 @@ import { applySabotage } from './sabotage.js'
 
 const auditTargets = [
   { id: 'product-image', label: 'Product image' },
+  { id: 'product-title', label: 'Product title' },
   { id: 'quantity-input', label: 'Quantity input' },
   { id: 'quantity-decrease', label: 'Decrease quantity button' },
   { id: 'quantity-increase', label: 'Increase quantity button' },
@@ -34,6 +35,28 @@ const sabotageMap = [
   },
   { ruleId: RULE_IDS.FOCUS_VISIBLE, target: 'add-to-cart', alsoDefensible: [] },
   { ruleId: RULE_IDS.TARGET_SIZE_MIN, target: 'remove-item', alsoDefensible: [] },
+  {
+    ruleId: RULE_IDS.NAME_ROLE_VALUE,
+    target: 'remove-item',
+    alsoDefensible: [
+      {
+        ruleId: RULE_IDS.NON_TEXT_CONTENT,
+        remark:
+          'Correct — the ✕ is non-text content with nothing standing in for it, and that is exactly what 1.1.1 covers. 4.1.2 is the sharper answer here: this element is a control rather than an image, so what failed is the name it exposes to assistive technology rather than a description of a picture.',
+      },
+    ],
+  },
+  {
+    ruleId: RULE_IDS.INFO_AND_RELATIONSHIPS,
+    target: 'product-title',
+    alsoDefensible: [
+      {
+        ruleId: RULE_IDS.NAME_ROLE_VALUE,
+        remark:
+          'Correct — the element does not expose the role its appearance implies, and that is exactly what 4.1.2 covers. 1.3.1 is the sharper answer here: nothing is misreporting itself, so what failed is the structure never being expressed in the document rather than a control describing itself wrongly.',
+      },
+    ],
+  },
 ]
 
 const ecommerceCheckoutLevel = {

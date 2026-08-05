@@ -1,13 +1,22 @@
 import { X } from 'lucide-react'
 import productImage from './assets/product.svg'
 import QuantityStepper from './QuantityStepper.jsx'
-import { DEFAULT_IMAGE_ALT, FOCUS_STYLES, LABEL_MODES, REMOVE_BUTTON_SIZES } from './variants.js'
+import {
+  DEFAULT_IMAGE_ALT,
+  FOCUS_STYLES,
+  LABEL_MODES,
+  REMOVE_BUTTON_LABELS,
+  REMOVE_BUTTON_SIZES,
+  TITLE_MARKUP,
+} from './variants.js'
 
 const DEFAULTS = {
   imageAlt: DEFAULT_IMAGE_ALT,
   labelMode: LABEL_MODES.PROGRAMMATIC,
   focusStyle: FOCUS_STYLES.VISIBLE,
   removeButtonSize: REMOVE_BUTTON_SIZES.DEFAULT,
+  removeButtonLabel: REMOVE_BUTTON_LABELS.DESCRIBED,
+  titleMarkup: TITLE_MARKUP.HEADING,
   // Whether the card's controls take part in the tab order. Defaults to the
   // ordinary interactive card; a caller rendering it as a static illustration
   // passes false. Nothing here is disabled or hidden — the controls keep their
@@ -33,8 +42,25 @@ const REMOVE_ICON_CLASSES = {
   [REMOVE_BUTTON_SIZES.COMPACT]: 'h-3 w-3',
 }
 
+// One string, used by both title variants. Written once rather than repeated in
+// each branch so the two renderings cannot drift apart: every visual property
+// the title has comes from here, and there is no second place to edit.
+const TITLE_CLASSES = 'text-base font-semibold text-gray-900'
+
+const TITLE_TEXT = 'Wireless Over-Ear Headphones'
+
+const REMOVE_BUTTON_NAME = 'Remove item'
+
 function CheckoutCard(props) {
-  const { imageAlt, labelMode, focusStyle, removeButtonSize, interactive } = {
+  const {
+    imageAlt,
+    labelMode,
+    focusStyle,
+    removeButtonSize,
+    removeButtonLabel,
+    titleMarkup,
+    interactive,
+  } = {
     ...DEFAULTS,
     ...props,
   }
@@ -55,13 +81,23 @@ function CheckoutCard(props) {
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <h2 className="text-base font-semibold text-gray-900">
-              Wireless Over-Ear Headphones
-            </h2>
+            {titleMarkup === TITLE_MARKUP.HEADING ? (
+              <h2 data-audit-target="product-title" className={TITLE_CLASSES}>
+                {TITLE_TEXT}
+              </h2>
+            ) : (
+              <div data-audit-target="product-title" className={TITLE_CLASSES}>
+                {TITLE_TEXT}
+              </div>
+            )}
 
             <button
               type="button"
-              aria-label="Remove item"
+              aria-label={
+                removeButtonLabel === REMOVE_BUTTON_LABELS.DESCRIBED
+                  ? REMOVE_BUTTON_NAME
+                  : undefined
+              }
               data-audit-target="remove-item"
               tabIndex={tabIndex}
               className={REMOVE_BUTTON_CLASSES[removeButtonSize]}
