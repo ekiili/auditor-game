@@ -1,4 +1,4 @@
-> **CLAUDE.md — v21 (2026-08-04)**
+> **CLAUDE.md — v22 (2026-08-05)**
 > This file is maintained by the Planner. Do not edit, append to, or
 > reorganize it. If you find it incomplete, ambiguous, or contradicted by
 > your task prompt, do not resolve the conflict yourself — report the
@@ -301,19 +301,29 @@ Returned by `inspectElement(element)` in `src/engine/readout.js`:
   accessibleDescription: string | null,
   width: number,
   height: number,
-  attributes: object
+  attributes: object,
+  textContrast: { foreground: string, background: string, ratio: number } | null,
+  boundaryContrast: { boundary: string, background: string, ratio: number } | null
 }
 ```
 
-All seven keys are **always present**. A missing value is `null`; the key is never omitted.
+All nine keys are **always present**. A missing value is `null`; the key is never omitted.
 
 * `role` — the explicit role attribute, else an implicit role from a small lookup covering `img`, `button`, `input[type=number]`, `input[type=text]`, `a[href]`, and `h1`–`h6`. Anything outside that lookup reports `null` rather than a guess.
 * `width` / `height` — CSS pixels from the element's bounding rectangle, **rounded to one decimal place**.
 * `attributes` — a **present-only map** holding only the attributes the element actually carries, so its key set is data about that element, not part of this contract. The seven reportable attributes are `alt`, `aria-label`, `aria-labelledby`, `aria-describedby`, `title`, `type`, `id`. On `ecommerce-checkout` only `alt`, `type`, `id`, and `aria-label` ever appear.
+* `textContrast` — the contrast between the element's own rendered text and the background actually painted behind it. `null` when the element renders no text of its own. `foreground` and `background` are the resolved colours as painted; `ratio` is rounded to two decimal places.
+* `boundaryContrast` — the contrast between the element's visible boundary and the background adjacent to it. `null` when the element draws no boundary. Rounded the same way.
 
 `alt=""` and no `alt` attribute are different states and must remain distinguishable: the first yields `{ alt: '' }`, the second omits the key.
 
 Never test whether a top-level key exists in order to decide whether a value is missing. Read the value and compare it to `null`.
+
+**`textContrast` and `boundaryContrast` are specified, not yet implemented.**
+
+**Both are facts, never verdicts.** No threshold is applied, no value is compared to 4.5:1 or 3:1, and nothing in the readout states or implies whether a figure passes. The reading is reported identically on every element, whether or not any criterion currently in the game concerns it. Knowing where the thresholds lie is the skill being taught, and a panel that marked them would hand it over.
+
+Both are computed from the live DOM at read time, under Guardrail 5. The background is resolved by walking outward until an opaque paint is found; anything that cannot be resolved that way reports `null` rather than a guess, exactly as `role` does.
 
 ### Focus readout
 
