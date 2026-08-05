@@ -33,6 +33,20 @@ function formatAttributes(attributes) {
   return entries.map(([name, value]) => `${name}="${value}"`).join('  ')
 }
 
+// The ratio and the two colours it was taken between, in one string, styled
+// exactly as every other value here.
+//
+// No threshold is printed, nothing is compared to 4.5:1 or 3:1, and a low
+// figure is rendered in the same colour and weight as a high one. Where the
+// thresholds lie is the skill this game teaches, and a panel that marked them
+// would answer the question instead of posing it. `toFixed` is for a steady
+// column width in the monospace value, not for precision the ratio does not
+// already carry — it arrives rounded to two decimals.
+function formatContrast(contrast, colourKey) {
+  if (contrast === null) return NONE
+  return `${contrast.ratio.toFixed(2)}:1  ${contrast[colourKey]} on ${contrast.background}`
+}
+
 function Row({ label, value }) {
   return (
     <div>
@@ -100,6 +114,14 @@ function ReadoutPanel({ targetId, containerRef }) {
             />
             <Row label="Size" value={formatSize(readout.width, readout.height)} />
             <Row label="Attributes" value={formatAttributes(readout.attributes)} />
+            <Row
+              label="Text contrast"
+              value={formatContrast(readout.textContrast, 'foreground')}
+            />
+            <Row
+              label="Boundary contrast"
+              value={formatContrast(readout.boundaryContrast, 'boundary')}
+            />
           </dl>
 
           <h3 className={`mt-4 ${HEADING_CLASSES}`}>Focus</h3>
