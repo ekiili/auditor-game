@@ -1,4 +1,4 @@
-> **CLAUDE.md — v22 (2026-08-05)**
+> **CLAUDE.md — v23 (2026-08-05)**
 > This file is maintained by the Planner. Do not edit, append to, or
 > reorganize it. If you find it incomplete, ambiguous, or contradicted by
 > your task prompt, do not resolve the conflict yourself — report the
@@ -84,7 +84,7 @@ Variant values live in `src/levels/<level>/variants.js` as frozen constants, imp
 
 Never name a prop `isBroken`, `isBugActive`, `hasViolation`, or similar, and never write a comment inside a component describing anything as a bug.
 
-**Phase 1 — the complete `ecommerce-checkout` contract:**
+**The complete `ecommerce-checkout` contract:**
 
 | Rule | Audit target | Prop | Compliant (default) | Variant | Failure mode |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -92,8 +92,12 @@ Never name a prop `isBroken`, `isBugActive`, `hasViolation`, or similar, and nev
 | **3.3.2** Labels or Instructions | `quantity-input` | `labelMode` | `'programmatic'` | `'visual-only'` | Visible label text is not programmatically associated. |
 | **2.4.7** Focus Visible | `add-to-cart` | `focusStyle` | `'visible'` | `'none'` | Keyboard focus indicator is absent. |
 | **2.5.8** Target Size (Minimum) | `remove-item` | `removeButtonSize` | `'default'` | `'compact'` | Touch target is 16px, below the 24px minimum. |
+| **4.1.2** Name, Role, Value | `remove-item` | `removeButtonLabel` | `'described'` | `'icon-only'` | Control exposes no accessible name. |
+| **1.3.1** Info and Relationships | `product-title` | `titleMarkup` | `'heading'` | `'styled-text'` | Title is visually a heading but carries no heading semantics. |
 
 This table maps rules to sabotage. It is not the whole prop surface of the level component — see **Level component props outside sabotage** in Data Contracts.
+
+**Two rules share `remove-item`, and their props are independent.** Either may be injected without the other, and both may be injected at once. Neither prop's value is derived from the other's.
 
 ### Levels
 
@@ -452,7 +456,7 @@ Captured when the player confirms Submit, carried in `submitAudit`'s payload, an
 }
 ```
 
-* Both maps hold an entry for **every** audit target in the level — all six on `ecommerce-checkout` — not only the ones the player flagged. A missed violation needs explaining as much as a false alarm does.
+* Both maps hold an entry for **every** audit target in the level — all seven on `ecommerce-checkout` — not only the ones the player flagged. A missed violation needs explaining as much as a false alarm does.
 * Keys are the audit target identifier: the same string that appears in `data-audit-target`, as `target` in a Violation entry, and as `id` in an `auditTargets` entry.
 * `elements` values are read live from the DOM at the moment Submit is confirmed. They are never `null`.
 * **Nothing may be overlaying or obstructing the page when the snapshot is read.** Whatever the submit confirmation is at the time, it is dismissed first and the reading is taken afterwards. This ordering is part of the contract, not an implementation detail: anything that blocks page scrolling can reclaim a space-taking scrollbar, narrowing the viewport, and any fluid element then reports a width the player never saw. The rule is about the page being unobstructed, not about any particular confirmation mechanism, and it survives changes to that mechanism.
@@ -531,7 +535,9 @@ Violations are applied by passing variant props down from the engine. Never inje
 **5. Reading the DOM Is Allowed; Mutating It Is Not.**
 The Inspector computes its readout from the rendered elements — `getComputedStyle`, `getBoundingClientRect`, attribute lookups, accessible name computation. This is required, because a readout derived from game state would agree with the sabotage layer even when the sabotage layer is broken. Read freely. Never write.
 
-Two sanctioned exceptions: `document.getElementById('root')` in `main.jsx`, which React requires to mount; and calling `.focus()` on an audit target in response to a deliberate player action, which moves focus without altering the element.
+Three sanctioned exceptions: `document.getElementById('root')` in `main.jsx`, which React requires to mount; calling `.focus()` on an audit target in response to a deliberate player action, which moves focus without altering the element; and a detached `<canvas>` used by `readout.js` to convert colour notations, created lazily and **never inserted into the document**.
+
+The canvas is not a violation because the guardrail governs the audited page, and an element that never enters the document changes nothing observable about it. It exists so the browser performs colour conversion rather than a hand-written parser: this card alone yields three notations, and a parser that silently mishandles a fourth would produce exactly the confidently wrong figure the contrast reading is built to avoid. Do not replace it with a parser, and do not insert it.
 
 **6. Never Auto-Correct Injected Violations.**
 Code producing an accessibility violation via a variant prop is intentional. Do not fix it, do not comment on it, do not "improve" it while editing nearby lines, and do not refactor it toward compliance. If a linter flags these paths, add a narrowly scoped disable comment and report it — never change behaviour to satisfy a linter.
@@ -570,11 +576,11 @@ All baseline code must strictly adhere to WCAG 2.2 AA:
 
 `jsx-a11y` is not enabled in this repo's linter, so none of the above is machine-checked. It is verified by reading and by behavioural testing only.
 
-### Phase 1 Audit Targets
+### Audit Targets
 
-Six elements carry `data-audit-target`. The four that can be broken are in the Variant Props table above; the last two are decoys — always compliant, always flaggable.
+Seven elements carry `data-audit-target`. Those that can be broken are in the Variant Props table above; the rest are decoys — always compliant, always flaggable.
 
-`product-image` · `quantity-input` · `add-to-cart` · `remove-item` · `quantity-decrease` · `quantity-increase`
+`product-image` · `product-title` · `quantity-input` · `add-to-cart` · `remove-item` · `quantity-decrease` · `quantity-increase`
 
 The attribute is a neutral identifier. It never indicates whether an element is currently broken.
 
