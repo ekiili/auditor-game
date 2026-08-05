@@ -123,6 +123,7 @@ export function markWeightFor(outcome, readout) {
 // sentences; nothing here is player-facing text.
 export const EVIDENCE = Object.freeze({
   ACCESSIBLE_NAME: 'accessibleName',
+  ROLE: 'role',
   SIZE: 'size',
   FOCUS_STYLING: 'focusStyling',
   FOCUS_NOT_APPLICABLE: 'focusNotApplicable',
@@ -131,9 +132,15 @@ export const EVIDENCE = Object.freeze({
 
 /**
  * The reading that answers one finding flagged in error, as
- * `{ kind, ...facts }`. A size failure is answered by dimensions, a missing
- * text alternative by the accessible name, and a focus failure by whichever of
- * the two focus cases applies.
+ * `{ kind, ...facts }`. A size failure is answered by dimensions, a naming
+ * failure — whether alleged of an image, a field or a control — by the
+ * accessible name, a structural failure by the role the element announced, and
+ * a focus failure by whichever of the two focus cases applies.
+ *
+ * Every fact here comes out of the Round snapshot the caller passes in. Nothing
+ * is measured, and no element is touched: this module imports no DOM at all, so
+ * a reading taken at review time is not merely discouraged here, it is
+ * unreachable.
  *
  * There is no case for a focusable element with no focus reading. Logging a
  * finding requires selecting its element, and selecting an element focuses it,
@@ -146,8 +153,41 @@ export function deriveEvidence(ruleId, readout, focusReadout) {
     return { kind: EVIDENCE.SIZE, width: readout.width, height: readout.height }
   }
 
+  // A name alleged of a control, and the same reading answers it. The one
+  // difference from the two criteria below is what happens when there is no
+  // name to report.
+  //
+  // Every reachable 4.1.2 false alarm on an element that genuinely carries no
+  // name lands on `product-image`, and only in a round where 1.1.1 was injected
+  // there. On a control it cannot arise: the unnamed remove button is a true
+  // positive, and the unlabelled quantity field is a defensible catch. So the
+  // absent-name branch here would only ever fire on the one element 4.1.2 does
+  // not apply to, and would state that the element has no accessible name
+  // directly underneath a heading saying the player was wrong to flag it. That
+  // is the open exemption question, not a reading — and no reading answers it,
+  // because the exemption is nowhere in the DOM. No sentence, the same
+  // treatment a missing focus reading gets below.
+  if (ruleId === RULE_IDS.NAME_ROLE_VALUE) {
+    if (readout.accessibleName === null) return { kind: EVIDENCE.NONE }
+    return { kind: EVIDENCE.ACCESSIBLE_NAME, accessibleName: readout.accessibleName }
+  }
+
   if (ruleId === RULE_IDS.NON_TEXT_CONTENT || ruleId === RULE_IDS.LABELS_OR_INSTRUCTIONS) {
     return { kind: EVIDENCE.ACCESSIBLE_NAME, accessibleName: readout.accessibleName }
+  }
+
+  // What the element announced itself as. The reading is the role, not the tag
+  // it came from: 1.3.1 is about structure reaching the accessibility tree, and
+  // the tag is only how it got there. Both are carried, because a heading that
+  // arrived as an `<h2>` is the evidence, not the word "heading" alone.
+  //
+  // A null role is no reading rather than an invented one, the same treatment a
+  // missing focus reading gets below. The readout reports null wherever it
+  // cannot name a role without guessing, and "it announced no role" would read
+  // as a failure underneath a heading that says the element was fine.
+  if (ruleId === RULE_IDS.INFO_AND_RELATIONSHIPS) {
+    if (readout.role === null) return { kind: EVIDENCE.NONE }
+    return { kind: EVIDENCE.ROLE, role: readout.role, tagName: readout.tagName }
   }
 
   if (ruleId === RULE_IDS.FOCUS_VISIBLE) {

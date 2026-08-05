@@ -14,6 +14,14 @@ const EVIDENCE_TEXT = {
       ? 'It had no accessible name when you submitted.'
       : `Its accessible name was “${accessibleName}”.`,
 
+  // States the element and the role together, because that pairing is the whole
+  // of what 1.3.1 asks: the role is what assistive technology received, and the
+  // element is where it came from. Neither is a verdict — a player reading
+  // “<div> announced the role generic” would draw the opposite conclusion from
+  // the same sentence, which is the point.
+  [EVIDENCE.ROLE]: ({ role, tagName }) =>
+    `Its <${tagName}> element announced the role “${role}”.`,
+
   [EVIDENCE.SIZE]: ({ width, height }) => `It measured ${width} × ${height} CSS pixels.`,
 
   [EVIDENCE.FOCUS_STYLING]: ({ outlineStyle, outlineWidth, boxShadow, hasVisibleIndicator }) => {
