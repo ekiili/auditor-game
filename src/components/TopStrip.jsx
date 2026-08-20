@@ -205,8 +205,8 @@ function TopStrip({ levelName, round, totalRounds, score, onRestart }) {
           </ol>
 
           <p className="mt-3 text-sm text-gray-900">
-            Every violation you catch is +1. Every one you miss, and everything you flag that was
-            fine, is −1. A run is {totalRounds} rounds.
+            Every violation you catch is +1 point. Every one you miss, and everything you flag that was
+            fine, is −1 point. A full run lasts for {totalRounds} rounds.
           </p>
         </section>
       )}
